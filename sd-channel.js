@@ -1,77 +1,35 @@
 (()=>{
-  const PERIOD=200, SD_BARS=2000, MULTI=2;
+  let cfg={mode:'auto',period:200,sdBars:2000,multi:2};
+  try{cfg={...cfg,...JSON.parse(localStorage.getItem('sdclrdSettings')||'{}')}}catch{}
   let top,middle,bottom,enabled=true,lastSig='';
-  function ensure(){
-    if(top)return;
-    const common={lineWidth:2,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false};
-    top=chart.addLineSeries({...common,color:'rgba(38,132,255,.78)'});
-    middle=chart.addLineSeries({...common,lineWidth:1,color:'rgba(38,132,255,.35)'});
-    bottom=chart.addLineSeries({...common,color:'rgba(38,132,255,.78)'});
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function autoSettings(){
+    const sec=(typeof TF!=='undefined'&&TF[tf])||900;
+    // Keep the original 200/2000/2 profile around 1h while adapting to faster/slower QUBIC charts.
+    let period,sdBars,multi;
+    if(sec<=30){period=120;sdBars=720;multi=2.4}
+    else if(sec<=60){period=150;sdBars=1000;multi=2.3}
+    else if(sec<=300){period=180;sdBars=1400;multi=2.2}
+    else if(sec<=900){period=200;sdBars=1800;multi=2.1}
+    else if(sec<=3600){period=200;sdBars=2000;multi=2}
+    else if(sec<=14400){period=160;sdBars=1400;multi=1.9}
+    else if(sec<=86400){period=120;sdBars=900;multi=1.8}
+    else{period=80;sdBars=600;multi=1.7}
+    const available=[...B.values()].length;
+    if(available>0){period=clamp(Math.min(period,Math.max(20,Math.floor(available*.35))),20,500);sdBars=clamp(Math.min(sdBars,Math.max(50,available-period)),50,5000)}
+    return{period,sdBars,multi};
   }
-  function linregAt(vals,end,len){
-    if(end-len+1<0)return NaN;
-    const n=len,sx=(n-1)*n/2,sxx=(n-1)*n*(2*n-1)/6;
-    let sy=0,sxy=0;
-    for(let j=0;j<n;j++){const y=vals[end-len+1+j];sy+=y;sxy+=j*y}
-    const den=n*sxx-sx*sx;
-    const slope=den?(n*sxy-sx*sy)/den:0;
-    const intercept=(sy-slope*sx)/n;
-    return intercept+slope*(n-1);
-  }
-  function stdev(a){
-    if(!a.length)return NaN;
-    const mean=a.reduce((s,v)=>s+v,0)/a.length;
-    return Math.sqrt(a.reduce((s,v)=>s+(v-mean)*(v-mean),0)/a.length);
-  }
-  function calculate(){
-    ensure();
-    const d=[...B.values()].sort((a,b)=>a.time-b.time);
-    if(d.length<PERIOD+2){top.setData([]);middle.setData([]);bottom.setData([]);return}
-    const vals=d.map(x=>(x.high+x.low+x.close)/3);
-    const regs=new Array(d.length).fill(NaN),dist=new Array(d.length).fill(NaN);
-    for(let i=PERIOD-1;i<d.length;i++){
-      const r=linregAt(vals,i,PERIOD);regs[i]=r;
-      if(Number.isFinite(r)&&r!==0)dist[i]=Math.abs(((vals[i]-r)/r)*100);
-    }
-    const T=[],M=[],L=[];
-    for(let i=PERIOD;i<d.length;i++){
-      const prior=regs[i-1];
-      if(!Number.isFinite(prior))continue;
-      const start=Math.max(PERIOD-1,i-SD_BARS+1);
-      const sample=[];
-      for(let j=start;j<=i;j++)if(Number.isFinite(dist[j]))sample.push(dist[j]);
-      // TradingView's original uses 2000 bars. Until 2000 are loaded, use the
-      // available rolling sample so the channel remains usable on shorter ranges.
-      if(sample.length<20)continue;
-      const sd=stdev(sample),pad=(sd*MULTI)/100;
-      T.push({time:d[i].time,value:prior*(1+pad)});
-      M.push({time:d[i].time,value:prior});
-      L.push({time:d[i].time,value:prior*(1-pad)});
-    }
-    top.setData(T);middle.setData(M);bottom.setData(L);
-    [top,middle,bottom].forEach(s=>s.applyOptions({visible:enabled}));
-  }
-  function refresh(force=false){
-    const d=[...B.values()];
-    const sig=(d.length?d[d.length-1].time:0)+'|'+d.length+'|'+tf;
-    if(force||sig!==lastSig){lastSig=sig;calculate()}
-  }
+  function active(){return cfg.mode==='auto'?autoSettings():{period:clamp(+cfg.period||200,20,500),sdBars:clamp(+cfg.sdBars||2000,50,5000),multi:clamp(+cfg.multi||2,.1,10)}}
+  function ensure(){if(top)return;const common={lineWidth:2,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false};top=chart.addLineSeries({...common,color:'rgba(38,132,255,.88)'});middle=chart.addLineSeries({...common,lineWidth:1,color:'rgba(38,132,255,.42)'});bottom=chart.addLineSeries({...common,color:'rgba(38,132,255,.88)'})}
+  function linregAt(vals,end,len){if(end-len+1<0)return NaN;const n=len,sx=(n-1)*n/2,sxx=(n-1)*n*(2*n-1)/6;let sy=0,sxy=0;for(let j=0;j<n;j++){const y=vals[end-len+1+j];sy+=y;sxy+=j*y}const den=n*sxx-sx*sx,slope=den?(n*sxy-sx*sy)/den:0,intercept=(sy-slope*sx)/n;return intercept+slope*(n-1)}
+  function stdev(a){if(!a.length)return NaN;const mean=a.reduce((s,v)=>s+v,0)/a.length;return Math.sqrt(a.reduce((s,v)=>s+(v-mean)*(v-mean),0)/a.length)}
+  function calculate(){ensure();const S=active(),PERIOD=S.period,SD_BARS=S.sdBars,MULTI=S.multi,d=[...B.values()].sort((a,b)=>a.time-b.time);updateStatus(S,d.length);if(d.length<PERIOD+2){top.setData([]);middle.setData([]);bottom.setData([]);return}const vals=d.map(x=>(x.high+x.low+x.close)/3),regs=new Array(d.length).fill(NaN),dist=new Array(d.length).fill(NaN);for(let i=PERIOD-1;i<d.length;i++){const r=linregAt(vals,i,PERIOD);regs[i]=r;if(Number.isFinite(r)&&r!==0)dist[i]=Math.abs(((vals[i]-r)/r)*100)}const T=[],M=[],L=[];for(let i=PERIOD;i<d.length;i++){const prior=regs[i-1];if(!Number.isFinite(prior))continue;const start=Math.max(PERIOD-1,i-SD_BARS+1),sample=[];for(let j=start;j<=i;j++)if(Number.isFinite(dist[j]))sample.push(dist[j]);if(sample.length<Math.min(20,SD_BARS))continue;const sd=stdev(sample),pad=sd*MULTI/100;T.push({time:d[i].time,value:prior*(1+pad)});M.push({time:d[i].time,value:prior});L.push({time:d[i].time,value:prior*(1-pad)})}top.setData(T);middle.setData(M);bottom.setData(L);[top,middle,bottom].forEach(s=>s.applyOptions({visible:enabled}))}
+  function refresh(force=false){const d=[...B.values()],S=active(),sig=(d.length?d[d.length-1].time:0)+'|'+d.length+'|'+tf+'|'+cfg.mode+'|'+S.period+'|'+S.sdBars+'|'+S.multi;if(force||sig!==lastSig){lastSig=sig;calculate()}}
   function setVisible(v){enabled=!!v;ensure();[top,middle,bottom].forEach(s=>s.applyOptions({visible:enabled}));if(enabled)refresh(true)}
-  function bind(){
-    try{cvdLine.applyOptions({visible:false})}catch{}
-    const box=document.getElementById('cvdToggle');
-    if(box){
-      box.checked=true;
-      box.onchange=e=>setVisible(e.target.checked);
-      const span=box.closest('span');
-      if(span){[...span.childNodes].forEach(n=>{if(n.nodeType===3)n.remove()});span.append(' SD Linear Regression Channel')}
-      const label=box.closest('label');
-      if(label)label.title='SDCLRD V1 · Linear regression 200 · standard deviation window 2000 · multiplier 2';
-    }
-    refresh(true);
-  }
-  window.SDCLRD={refresh,setVisible,settings:{period:PERIOD,standardDeviationBars:SD_BARS,multiplier:MULTI}};
-  setTimeout(bind,0);
-  setInterval(()=>refresh(false),1500);
-  ['tf','qtf'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(()=>refresh(true),700)));
+  function save(){localStorage.setItem('sdclrdSettings',JSON.stringify(cfg));refresh(true)}
+  function updateStatus(S,n){const e=document.getElementById('sdStatus');if(e)e.textContent=(cfg.mode==='auto'?'AUTO':'MANUAL')+' · REG '+S.period+' · SD '+S.sdBars+' · ×'+(+S.multi).toFixed(2)+' · '+n+' bars'}
+  function addControls(label){if(document.getElementById('sdControls'))return;const wrap=document.createElement('div');wrap.id='sdControls';wrap.style.cssText='border-top:1px solid #ffffff14;margin-top:7px;padding-top:8px;display:grid;gap:7px;font:800 8px ui-monospace';wrap.innerHTML='<div style="display:flex;gap:5px"><button id="sdAuto" type="button" style="flex:1;min-height:30px">AUTO DYNAMIC</button><button id="sdManual" type="button" style="flex:1;min-height:30px">MANUAL</button></div><small id="sdStatus" style="color:#58d8ff;letter-spacing:.04em"></small><label style="display:grid;grid-template-columns:1fr 85px;gap:6px;align-items:center">REGRESSION PERIOD<input id="sdPeriod" type="number" min="20" max="500" step="1"></label><label style="display:grid;grid-template-columns:1fr 85px;gap:6px;align-items:center">STD DEV BARS<input id="sdBars" type="number" min="50" max="5000" step="10"></label><label style="display:grid;grid-template-columns:1fr 85px;gap:6px;align-items:center">MULTIPLIER<input id="sdMulti" type="number" min="0.1" max="10" step="0.1"></label><button id="sdReset" type="button" style="min-height:29px">RESET 200 / 2000 / 2</button>';label.parentNode.insertBefore(wrap,label.nextSibling);const P=document.getElementById('sdPeriod'),D=document.getElementById('sdBars'),M=document.getElementById('sdMulti');P.value=cfg.period;D.value=cfg.sdBars;M.value=cfg.multi;function paintMode(){const auto=cfg.mode==='auto';document.getElementById('sdAuto').style.borderColor=auto?'#39c655':'#263640';document.getElementById('sdAuto').style.color=auto?'#6bec81':'#eaf0f2';document.getElementById('sdManual').style.borderColor=!auto?'#39c655':'#263640';document.getElementById('sdManual').style.color=!auto?'#6bec81':'#eaf0f2';[P,D,M].forEach(x=>{x.disabled=auto;x.style.opacity=auto?.48:1})}paintMode();document.getElementById('sdAuto').onclick=()=>{cfg.mode='auto';paintMode();save()};document.getElementById('sdManual').onclick=()=>{cfg.mode='manual';paintMode();save()};P.onchange=()=>{cfg.period=clamp(+P.value||200,20,500);P.value=cfg.period;save()};D.onchange=()=>{cfg.sdBars=clamp(+D.value||2000,50,5000);D.value=cfg.sdBars;save()};M.onchange=()=>{cfg.multi=clamp(+M.value||2,.1,10);M.value=cfg.multi;save()};document.getElementById('sdReset').onclick=()=>{cfg={mode:'manual',period:200,sdBars:2000,multi:2};P.value=200;D.value=2000;M.value=2;paintMode();save()}}
+  function bind(){try{cvdLine.applyOptions({visible:false})}catch{}const box=document.getElementById('cvdToggle');if(box){box.checked=true;box.onchange=e=>setVisible(e.target.checked);const span=box.closest('span');if(span){[...span.childNodes].forEach(n=>{if(n.nodeType===3)n.remove()});span.append(' SD Linear Regression Channel')}const label=box.closest('label');if(label){label.title='SDCLRD V1 · manual or timeframe-adaptive dynamic mode';addControls(label)}}refresh(true)}
+  window.SDCLRD={refresh,setVisible,get settings(){return{...cfg,...active()}},setMode:m=>{cfg.mode=m==='manual'?'manual':'auto';save()}};
+  setTimeout(bind,0);setInterval(()=>refresh(false),1200);['tf','qtf'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(()=>refresh(true),500)));
 })();

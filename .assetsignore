@@ -1,0 +1,10 @@
+.git/
+.github/
+api/
+cloudflare/
+node_modules/
+package.json
+package-lock.json
+wrangler.jsonc
+vercel.json
+deploy-*.txt

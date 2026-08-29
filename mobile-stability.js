@@ -4,12 +4,12 @@
   if(!rawRender||!rawStats)return;
 
   let renderQueued=false,statsQueued=false,lastRender=0,lastStats=0;
-  const MIN_RENDER_MS=mobile?1400:300,MIN_STATS_MS=mobile?1800:600;
+  const MIN_RENDER_MS=mobile?1800:300,MIN_STATS_MS=mobile?2200:600;
 
   render=function(){
     if(document.hidden||renderQueued)return;
     renderQueued=true;
-    let wait=Math.max(0,MIN_RENDER_MS-(Date.now()-lastRender));
+    const wait=Math.max(0,MIN_RENDER_MS-(Date.now()-lastRender));
     setTimeout(()=>{
       renderQueued=false;
       if(document.hidden)return;
@@ -21,7 +21,7 @@
   stats=function(){
     if(document.hidden||statsQueued)return;
     statsQueued=true;
-    let wait=Math.max(0,MIN_STATS_MS-(Date.now()-lastStats));
+    const wait=Math.max(0,MIN_STATS_MS-(Date.now()-lastStats));
     setTimeout(()=>{
       statsQueued=false;
       if(document.hidden)return;
@@ -30,29 +30,30 @@
     },wait);
   };
 
-  /*
-    iOS Safari was still receiving every websocket trade through add()->tick().
-    Even though DOM rendering was throttled, LightweightCharts was therefore being
-    updated on every Gate trade and the other exchange streams were still pushing
-    work through add(). After several minutes Safari's main thread could stall.
-
-    On mobile:
-    - Gate remains the authoritative live chart source.
-    - Non-Gate websocket trades are ignored here; multi-exchange flow continues to
-      arrive through /api/live-trades in net-flow-v2, without touching the chart.
-    - Gate chart updates are coalesced to at most one update every 1.2 seconds.
-  */
   if(mobile){
+    /* Gate remains the direct chart source, but process only the newest Gate trade
+       every 1.5s. This caps array writes, chart work, stats/render requests and
+       sound generation at the source instead of merely throttling the UI later. */
     try{
       if(typeof add==='function'){
         const rawAdd=add;
+        let pending=null,timer=0,lastAdd=0;
         add=function(ex,p,q,side,ms=Date.now(),id=''){
           if(String(ex).toUpperCase()!=='GATE')return;
-          return rawAdd(ex,p,q,side,ms,id);
+          pending=[ex,p,q,side,ms,id];
+          if(timer)return;
+          const run=()=>{
+            timer=0;
+            if(document.hidden||!pending)return;
+            const x=pending;pending=null;lastAdd=Date.now();
+            try{rawAdd(...x)}catch(e){console.warn('mobile add recovery',e)}
+          };
+          timer=setTimeout(run,Math.max(0,1500-(Date.now()-lastAdd)));
         };
       }
     }catch(e){console.warn('mobile add throttle',e)}
 
+    /* Extra guard for any direct chart tick path. */
     try{
       if(typeof tick==='function'){
         const rawTick=tick;
@@ -67,22 +68,36 @@
             const x=pending;pending=null;lastTick=Date.now();
             try{rawTick(...x)}catch(e){console.warn('chart tick recovery',e)}
           };
-          const wait=Math.max(0,1200-(Date.now()-lastTick));
-          timer=setTimeout(run,wait);
+          timer=setTimeout(run,Math.max(0,1500-(Date.now()-lastTick)));
         };
       }
     }catch(e){console.warn('mobile tick throttle',e)}
+
+    /* Sound was a hidden hotspot: each qualifying trade created a new oscillator.
+       Keep the feature, but never create more than one sound node per second. */
+    try{
+      if(typeof sound==='function'){
+        const rawSound=sound;
+        let lastSound=0;
+        sound=function(side,usd){
+          const now=Date.now();
+          if(now-lastSound<1000)return;
+          lastSound=now;
+          try{return rawSound(side,usd)}catch(e){console.warn('sound recovery',e)}
+        };
+      }
+    }catch(e){console.warn('mobile sound throttle',e)}
 
     try{if(typeof mexc==='function')mexc=function(){}}catch{}
   }
 
   function trim(){
     if(!mobile)return;
-    try{if(typeof T!=='undefined'&&T.length>450)T.length=450}catch{}
-    try{if(typeof R!=='undefined'&&R.length>700)R.splice(0,R.length-700)}catch{}
-    try{if(typeof seen!=='undefined'&&seen.size>1800){let n=seen.size-1200,i=0;for(const k of seen){seen.delete(k);if(++i>=n)break}}}catch{}
-    try{if(typeof CVDM!=='undefined'&&CVDM.size>450){let n=CVDM.size-300,i=0;for(const k of CVDM.keys()){CVDM.delete(k);if(++i>=n)break}}}catch{}
-    try{let rows=document.getElementById('rowLimit');if(rows&&+rows.value>30){rows.value='30';rawRender()}}catch{}
+    try{if(typeof T!=='undefined'&&T.length>250)T.length=250}catch{}
+    try{if(typeof R!=='undefined'&&R.length>400)R.splice(0,R.length-400)}catch{}
+    try{if(typeof seen!=='undefined'&&seen.size>900){let n=seen.size-600,i=0;for(const k of seen){seen.delete(k);if(++i>=n)break}}}catch{}
+    try{if(typeof CVDM!=='undefined'&&CVDM.size>220){let n=CVDM.size-150,i=0;for(const k of CVDM.keys()){CVDM.delete(k);if(++i>=n)break}}}catch{}
+    try{let rows=document.getElementById('rowLimit');if(rows&&+rows.value>20){rows.value='20';rawRender()}}catch{}
   }
 
   trim();
@@ -90,11 +105,11 @@
   document.addEventListener('visibilitychange',()=>{
     if(!document.hidden){
       trim();
-      setTimeout(()=>{try{rawStats();rawRender()}catch{}},300);
+      setTimeout(()=>{try{rawStats();rawRender()}catch{}},350);
     }
   });
   window.addEventListener('pageshow',e=>{
-    if(e.persisted){trim();setTimeout(()=>{try{rawStats();rawRender()}catch{}},350)}
+    if(e.persisted){trim();setTimeout(()=>{try{rawStats();rawRender()}catch{}},400)}
   });
-  window.QUBIC_MOBILE_STABILITY={active:true,mobile,renderMs:MIN_RENDER_MS,statsMs:MIN_STATS_MS,gateTickMs:mobile?1200:0,ts:Date.now()};
+  window.QUBIC_MOBILE_STABILITY={active:true,mobile,renderMs:MIN_RENDER_MS,statsMs:MIN_STATS_MS,gateIngestMs:mobile?1500:0,soundMs:mobile?1000:0,ts:Date.now()};
 })();

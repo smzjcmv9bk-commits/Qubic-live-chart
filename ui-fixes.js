@@ -5,5 +5,5 @@
  function loadPred(){if(document.querySelector('script[data-pred-v9]'))return;let p=document.createElement('script');p.src='/prediction-v9.js?v=2';p.dataset.predV9='1';document.body.appendChild(p)}
  let sync=document.createElement('script');sync.src='/prediction-server-sync.js?v=2';sync.dataset.predServer='1';sync.onload=()=>Promise.race([window.__qServerLearningReady||Promise.resolve(),new Promise(r=>setTimeout(r,1800))]).finally(loadPred);sync.onerror=loadPred;document.body.appendChild(sync);setTimeout(loadPred,3200);
  setTimeout(()=>{if(!document.querySelector('script[data-pred-simple]')){let p=document.createElement('script');p.src='/prediction-simple-ui.js?v=5';p.dataset.predSimple='1';document.body.appendChild(p)}},4200);
- setTimeout(()=>{if(!document.querySelector('script[data-mobile-stability]')){let p=document.createElement('script');p.src='/mobile-stability.js?v=2';p.dataset.mobileStability='1';document.body.appendChild(p)}},900);
+ setTimeout(()=>{if(!document.querySelector('script[data-mobile-stability]')){let p=document.createElement('script');p.src='/mobile-stability.js?v=3';p.dataset.mobileStability='1';document.body.appendChild(p)}},900);
 })();

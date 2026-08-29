@@ -1,0 +1,1 @@
+Force production deployment so the restored dashboard loads AVWAP intelligence v3 and pattern intelligence v4 from current main. Preserve the existing professional UI and stability fixes.

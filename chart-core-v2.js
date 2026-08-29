@@ -1,0 +1,24 @@
+(()=>{
+const $=id=>document.getElementById(id);
+const TF={
+ '1m':{sec:60,src:'1m'},'2m':{sec:120,src:'1m'},'3m':{sec:180,src:'1m'},
+ '5m':{sec:300,src:'5m'},'10m':{sec:600,src:'5m'},'15m':{sec:900,src:'15m'},
+ '30m':{sec:1800,src:'30m'},'45m':{sec:2700,src:'15m'},'1h':{sec:3600,src:'1h'},
+ '2h':{sec:7200,src:'1h'},'3h':{sec:10800,src:'1h'},'4h':{sec:14400,src:'4h'},
+ '6h':{sec:21600,src:'1h'},'8h':{sec:28800,src:'1h'},'12h':{sec:43200,src:'1h'},
+ '1d':{sec:86400,src:'1d'},'3d':{sec:259200,src:'1d'},'1w':{sec:604800,src:'1d'}
+};
+let active='15m';
+function valid(v){return TF[v]?v:null}
+function sync(v){v=valid(v)||active;active=v;for(const id of ['tf','qtf']){const e=$(id);if(e&&[...e.options].some(o=>o.value===v)&&e.value!==v)e.value=v}document.querySelectorAll('#quickTf [data-tf]').forEach(b=>b.classList.toggle('active',b.dataset.tf===v));const w=$('waterTf');if(w)w.textContent=v.toUpperCase();const t=$('chartToast');if(t)t.textContent=`${v.toUpperCase()} · GATE OHLC · UK TIME`;}
+function bucket(t,sec,tf){t=+t;if(tf==='1w'){const monday=345600;return Math.floor((t-monday)/sec)*sec+monday}if(tf==='3d'){const day=Math.floor(t/86400)*86400;return Math.floor(day/sec)*sec}return Math.floor(t/sec)*sec}
+function aggregate(rows,tf){const cfg=TF[tf];if(!cfg||cfg.src===tf)return rows;const out=[];let c=null;for(const x of rows.slice().sort((a,b)=>+a.time-+b.time)){const k=bucket(+x.time,cfg.sec,tf);if(!c||c.time!==k){if(c)out.push(c);c={time:k,open:+x.open,high:+x.high,low:+x.low,close:+x.close,volume:+x.volume||0}}else{c.high=Math.max(c.high,+x.high);c.low=Math.min(c.low,+x.low);c.close=+x.close;c.volume+=(+x.volume||0)}}if(c)out.push(c);return out.filter(x=>Number.isFinite(x.time)&&x.open>0&&x.high>0&&x.low>0&&x.close>0)}
+function chooseLimit(tf){const s=TF[tf]?.src;return s==='1m'?1000:s==='5m'?1000:s==='15m'?900:s==='30m'?700:s==='1h'?1000:s==='4h'?700:700}
+const nf=window.fetch.bind(window);
+window.fetch=async(input,init)=>{let raw=typeof input==='string'?input:(input?.url||'');if(!raw.includes('/api/mobile-candles'))return nf(input,init);const tf=active,cfg=TF[tf]||TF['15m'];try{const u=new URL(raw,location.origin);u.searchParams.set('interval',cfg.src);u.searchParams.set('limit',String(chooseLimit(tf)));u.searchParams.set('requested',tf);u.searchParams.set('t',String(Date.now()));const r=await nf(u.pathname+u.search,init);if(!r.ok)return r;const j=await r.clone().json();if(!j?.ok||!Array.isArray(j.candles))return r;const candles=aggregate(j.candles,tf);return new Response(JSON.stringify({...j,interval:tf,sourceInterval:cfg.src,requestedInterval:tf,aligned:true,timeZone:'Europe/London',candles}),{status:r.status,statusText:r.statusText,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}})}catch{return nf(input,init)}};
+function london(ts,withDate=false){const d=new Date(+ts*1000);return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:withDate?'2-digit':undefined,month:withDate?'short':undefined,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d)}
+if(window.LightweightCharts?.createChart){const cc=window.LightweightCharts.createChart.bind(window.LightweightCharts);window.LightweightCharts.createChart=(el,opt={})=>cc(el,{...opt,localization:{...(opt.localization||{}),timeFormatter:t=>london(t,true)},timeScale:{...(opt.timeScale||{}),timeVisible:true,secondsVisible:false,tickMarkFormatter:t=>london(t,false)}})}
+function bind(){for(const id of ['tf','qtf']){$(id)?.addEventListener('change',e=>sync(e.target.value),true)}document.querySelectorAll('#quickTf [data-tf]').forEach(b=>b.addEventListener('click',()=>sync(b.dataset.tf),true));for(const id of ['tf','qtf']){const e=$(id);if(e)[...e.options].forEach(o=>{if(/^(10|15|30|45)s$/.test(o.value))o.remove()})}sync(valid($('qtf')?.value)||valid($('tf')?.value)||'15m')}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+window.__QubicChartCore={get timeframe(){return active},sync};
+})();

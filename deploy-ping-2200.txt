@@ -1,0 +1,1 @@
+Force production rebuild for active-candle history guard and chart cleanup at 2026-08-29 22:00 UK.

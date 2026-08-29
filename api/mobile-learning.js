@@ -1,0 +1,13 @@
+export default async function handler(req,res){
+  res.setHeader('Cache-Control','no-store, max-age=0');
+  res.setHeader('Access-Control-Allow-Origin','*');
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),5000);
+  try{
+    const u='https://raw.githubusercontent.com/smzjcmv9bk-commits/Qubic-live-chart/learning-data/learning/v9-state.json?x='+Date.now();
+    const r=await fetch(u,{cache:'no-store',signal:c.signal,headers:{accept:'application/json','user-agent':'QubicIntelligence/1.0'}});
+    if(!r.ok)throw Error(String(r.status));
+    const s=await r.json();
+    res.status(200).json({ok:true,...s});
+  }catch(e){res.status(503).json({ok:false,error:String(e?.message||e),ts:Date.now()})}
+  finally{clearTimeout(t)}
+}

@@ -1,1 +1,9 @@
-{"cleanUrls":true}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "learning-data": false
+    }
+  }
+}

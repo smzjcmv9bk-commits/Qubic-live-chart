@@ -1,0 +1,27 @@
+let cache={ts:0,chosen:null,scores:{}};
+const timeout=(p,ms=4500)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+const get=async u=>{const r=await timeout(fetch(u,{cache:'no-store',headers:{accept:'application/json','user-agent':'QubicLiveChart/3.0'}}));if(!r.ok)throw Error(String(r.status));return r.json()};
+const normTs=t=>{t=+t||0;return t<1e12?t*1000:t};
+const scoreRows=(rows,now)=>{let usd=0,n=0,last=0;for(const x of rows){const t=normTs(x.t),p=+x.p,q=+x.q;if(t>=now-120000&&p>0&&q>0){usd+=p*q;n++;last=Math.max(last,t)}}return {usd,n,last,score:usd*(1+Math.min(n,80)/80)*(last>now-20000?1.15:1)}};
+async function activity(){const now=Date.now();if(now-cache.ts<15000&&cache.chosen)return cache;const rows={GATE:[],MEXC:[],BITGET:[],COINEX:[],LBANK:[]};const push=(ex,p,q,t)=>rows[ex].push({p:+p,q:+q,t:normTs(t)});
+await Promise.allSettled([
+ get('https://api.gateio.ws/api/v4/spot/trades?currency_pair=QUBIC_USDT&limit=100').then(a=>a.forEach(x=>push('GATE',x.price,x.amount,x.create_time_ms||x.create_time))),
+ get('https://api.mexc.com/api/v3/trades?symbol=QUBICUSDT&limit=100').then(a=>a.forEach(x=>push('MEXC',x.price,x.qty,x.time))),
+ get('https://api.bitget.com/api/v2/spot/market/fills?symbol=QUBICUSDT&limit=100').then(x=>(x.data||[]).forEach(v=>push('BITGET',v.price||v.px,v.size||v.sz,v.ts||v.time))),
+ get('https://api.coinex.com/v2/spot/deals?market=QUBICUSDT&limit=100').then(x=>(x.data||[]).forEach(v=>push('COINEX',v.price,v.amount,v.created_at||v.createdAt||v.time))),
+ get('https://api.lbkex.com/v2/trades.do?symbol=qubic_usdt&size=100').then(x=>(x.data||[]).forEach(v=>push('LBANK',v.price,v.amount||v.volume,v.date_ms||v.date||v.time)))
+]);
+const scores={};for(const [k,v] of Object.entries(rows))scores[k]=scoreRows(v,now);const ranked=Object.entries(scores).sort((a,b)=>b[1].score-a[1].score);cache={ts:now,chosen:ranked[0]?.[0]||'GATE',scores};return cache}
+const maps={
+ GATE:{'1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'1h','4h':'4h','1d':'1d'},
+ MEXC:{'1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'60m','4h':'4h','1d':'1d'},
+ BITGET:{'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1h','4h':'4h','1d':'1day'},
+ COINEX:{'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1hour','4h':'4hour','1d':'1day'},
+ LBANK:{'1m':'minute1','5m':'minute5','15m':'minute15','30m':'minute30','1h':'hour1','4h':'hour4','1d':'day1'}
+};
+async function candles(ex,iv,limit){if(ex==='GATE'){const a=await get(`https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=QUBIC_USDT&interval=${maps.GATE[iv]}&limit=${limit}`);return a.map(x=>({time:+x[0],open:+x[5],high:+x[3],low:+x[4],close:+x[2],volume:+x[1]||0}))}
+if(ex==='MEXC'){const a=await get(`https://api.mexc.com/api/v3/klines?symbol=QUBICUSDT&interval=${maps.MEXC[iv]}&limit=${limit}`);return a.map(x=>({time:Math.floor(+x[0]/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]||0}))}
+if(ex==='BITGET'){const x=await get(`https://api.bitget.com/api/v2/spot/market/candles?symbol=QUBICUSDT&granularity=${maps.BITGET[iv]}&limit=${Math.min(limit,1000)}`);return (x.data||[]).map(v=>({time:Math.floor(+v[0]/1000),open:+v[1],high:+v[2],low:+v[3],close:+v[4],volume:+v[5]||0}))}
+if(ex==='COINEX'){const x=await get(`https://api.coinex.com/v2/spot/kline?market=QUBICUSDT&period=${maps.COINEX[iv]}&limit=${Math.min(limit,1000)}`);return (x.data||[]).map(v=>({time:Math.floor(+(v.created_at||v.createdAt)/1000),open:+v.open,high:+v.high,low:+v.low,close:+v.close,volume:+v.volume||0}))}
+if(ex==='LBANK'){const x=await get(`https://api.lbank.info/v2/kline.do?symbol=qubic_usdt&size=${Math.min(limit,2000)}&type=${maps.LBANK[iv]}&time=${Math.floor(Date.now()/1000)}`);return (x.data||[]).map(v=>({time:+v[0],open:+v[1],high:+v[2],low:+v[3],close:+v[4],volume:+v[5]||0}))}return []}
+module.exports=async function handler(req,res){res.setHeader('Cache-Control','no-store, max-age=0');res.setHeader('Access-Control-Allow-Origin','*');const iv=['1m','5m','15m','30m','1h','4h','1d'].includes(String(req.query?.interval))?String(req.query.interval):'15m';const limit=Math.max(60,Math.min(1000,+req.query?.limit||480));const prefer=String(req.query?.prefer||'').toUpperCase();try{const a=await activity();const ranked=Object.entries(a.scores).sort((x,y)=>y[1].score-x[1].score);let chosen=a.chosen;const top=ranked[0]?.[1]?.score||0;if(prefer&&a.scores[prefer]&&a.scores[prefer].score>=top*.65)chosen=prefer;const order=[chosen,...ranked.map(x=>x[0]),'GATE'].filter((v,i,s)=>v&&s.indexOf(v)===i);let data=[],source=null;for(const ex of order){try{data=(await candles(ex,iv,limit)).filter(x=>Number.isFinite(x.time)&&x.open>0&&x.high>0&&x.low>0&&x.close>0).sort((x,y)=>x.time-y.time);if(data.length){source=ex;break}}catch{}}if(!data.length)return res.status(503).json({ok:false,error:'No active exchange candles',interval:iv,ts:Date.now()});res.status(200).json({ok:true,interval:iv,source,activity:a.scores,candles:data,ts:Date.now()})}catch(e){res.status(503).json({ok:false,error:String(e?.message||e),interval:iv,ts:Date.now()})}}

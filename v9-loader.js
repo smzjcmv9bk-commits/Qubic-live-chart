@@ -1,0 +1,39 @@
+(()=>{
+const safeParse=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||f)}catch{return JSON.parse(f)}};
+const uniqMerge=(remote,local)=>{const m=new Map();[...(remote||[]),...(local||[])].forEach(x=>{const k=x?.bucket??x?.createdAt??x?.t;if(k!=null)m.set(String(k),x)});return [...m.values()].sort((a,b)=>(a.bucket??a.createdAt??a.t??0)-(b.bucket??b.createdAt??b.t??0))};
+async function seedPersistentLearning(){
+  try{
+    const r=await fetch('/api/mobile-learning?ts='+Date.now(),{cache:'no-store'}); const j=await r.json();
+    if(!r.ok||!j?.ok) return;
+    const lh=safeParse('qPredHistoryV9','[]');
+    const ls=safeParse('qPredStateV9','[]');
+    const rh=(j.history||[]).map(x=>({
+      bucket:+x.bucket||Math.floor((+x.createdAt||0)/3600000)*3600,
+      price:+x.price||0,
+      dir:x.dir||'NEUTRAL',
+      confidence:+(x.confidence??x.conf??0),
+      cluster:x.cluster||'',
+      done:!!x.done,
+      move:Number.isFinite(+x.move)?+x.move:undefined,
+      correct:typeof x.correct==='boolean'?x.correct:undefined
+    })).filter(x=>x.bucket&&x.price>0);
+    const rs=(j.stateMem||[]).map(x=>({t:+x.t||Date.now(),regime:x.regime||'RANGING',trend:+x.trend||0,momentum:+x.momentum||0,flow:+x.flow||0,book:+x.book||0}));
+    localStorage.setItem('qPredHistoryV9',JSON.stringify(uniqMerge(rh,lh).slice(-360)));
+    localStorage.setItem('qPredStateV9',JSON.stringify(uniqMerge(rs,ls).slice(-180)));
+    localStorage.setItem('qPredRemoteMetaV9',JSON.stringify({updatedAt:j.updatedAt||null,runCount:j.runCount||0,global:j.global||null,syncedAt:Date.now()}));
+  }catch(e){console.warn('v9 persistent learning sync',e)}
+}
+function loadV9(){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/prediction-v9.js?v=3';s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
+let avwap=null;
+async function refreshAVWAP(){
+  try{const r=await fetch('/api/avwap-signal?ts='+Date.now(),{cache:'no-store'}),j=await r.json();if(!r.ok||!j?.ok)throw Error(j?.error||r.status);avwap=j;window.QUBIC_AVWAP=j;paintAVWAP()}catch(e){window.QUBIC_AVWAP=null;paintAVWAP(true)}}
+function paintAVWAP(failed=false){
+  const p=document.getElementById('predictionPanel'); if(!p)return;
+  let el=document.getElementById('predAvwap');
+  if(!el){el=document.createElement('div');el.id='predAvwap';el.style.cssText='margin-top:7px;border:1px solid #263746;border-radius:7px;padding:8px;font:800 8px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;color:#c9d8e0;background:#0a121b';const book=document.getElementById('predBook');(book||p).insertAdjacentElement(book?'afterend':'beforeend',el)}
+  if(failed||!avwap){el.textContent='AVWAP · CONNECTING';return}
+  const pinch=avwap.pinchFrames?.length?' · PINCH '+avwap.pinchFrames.join('/') : '';
+  el.textContent=`AVWAP ${avwap.direction} · ALIGN ${avwap.alignment}% · STRENGTH ${avwap.strength}%${pinch}`;
+}
+(async()=>{await seedPersistentLearning();await loadV9();setTimeout(refreshAVWAP,900);setInterval(refreshAVWAP,15000);setInterval(seedPersistentLearning,300000)})().catch(e=>console.warn('v9 loader',e));
+})();

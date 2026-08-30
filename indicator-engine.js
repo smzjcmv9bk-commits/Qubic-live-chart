@@ -1,24 +1,100 @@
 (()=>{
 const $=id=>document.getElementById(id);
-const periods=[9,20,50,200];
-let rows=[],loading=false,hookedSeries=null,subscribed=false,raf=0;
-function normalise(a){return (Array.isArray(a)?a:[]).map(x=>({time:+x.time,open:+x.open,high:+x.high,low:+x.low,close:+x.close,volume:+x.volume||0})).filter(x=>Number.isFinite(x.time)&&x.close>0).sort((a,b)=>a.time-b.time)}
-function ema(data,p){if(data.length<p)return[];const k=2/(p+1);let v=data.slice(0,p).reduce((s,x)=>s+x.close,0)/p,out=[{time:data[p-1].time,value:v}];for(let i=p;i<data.length;i++){v=data[i].close*k+v*(1-k);out.push({time:data[i].time,value:v})}return out}
-function regression(data){if(data.length<20)return{mid:[],up:[],down:[]};const n=Math.min(120,data.length),a=data.slice(-n),sx=n*(n-1)/2,sxx=(n-1)*n*(2*n-1)/6,sy=a.reduce((s,x)=>s+x.close,0),sxy=a.reduce((s,x,i)=>s+i*x.close,0),den=n*sxx-sx*sx;if(!den)return{mid:[],up:[],down:[]};const m=(n*sxy-sx*sy)/den,b=(sy-m*sx)/n,res=a.map((x,i)=>x.close-(b+m*i)),sd=Math.sqrt(res.reduce((s,v)=>s+v*v,0)/Math.max(1,n-2)),mid=a.map((x,i)=>({time:x.time,value:b+m*i}));return{mid,up:mid.map(x=>({time:x.time,value:x.value+2*sd})),down:mid.map(x=>({time:x.time,value:x.value-2*sd}))}}
-function overlay(){const chart=$('qchart'),stage=chart?.closest('.chartStage');if(!chart||!stage)return null;if(getComputedStyle(stage).position==='static')stage.style.position='relative';let svg=$('indicatorOverlay');if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='indicatorOverlay';svg.setAttribute('aria-hidden','true');svg.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:60;pointer-events:none;overflow:hidden;display:block';stage.appendChild(svg)}const w=Math.max(1,chart.clientWidth),h=Math.max(1,chart.clientHeight);svg.style.width=w+'px';svg.style.height=h+'px';svg.setAttribute('width',String(w));svg.setAttribute('height',String(h));svg.setAttribute('viewBox',`0 0 ${w} ${h}`);return svg}
-function coord(pt){const c=window.__QubicChart,s=window.__QubicCandleSeries;if(!c||!s)return null;let x=null,y=null;try{x=c.timeScale().timeToCoordinate(pt.time);y=s.priceToCoordinate(pt.value)}catch{}return Number.isFinite(x)&&Number.isFinite(y)?{x,y}:null}
-function pathFor(data){let d='',started=false,count=0;for(const pt of data){const p=coord(pt);if(!p){started=false;continue}d+=(started?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)+' ';started=true;count++}return count>1?d.trim():''}
-function addPath(svg,data,color,width=2,dash=''){const d=pathFor(data);if(!d)return false;const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width',String(width));p.setAttribute('stroke-opacity','1');p.setAttribute('stroke-linejoin','round');p.setAttribute('stroke-linecap','round');p.setAttribute('vector-effect','non-scaling-stroke');if(dash)p.setAttribute('stroke-dasharray',dash);svg.appendChild(p);return true}
-function addLegend(svg,items){if(!items.length)return;const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform','translate(12 118)');items.forEach((it,i)=>{const y=i*17;const line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1','0');line.setAttribute('x2','18');line.setAttribute('y1',String(y));line.setAttribute('y2',String(y));line.setAttribute('stroke',it.color);line.setAttribute('stroke-width','3');g.appendChild(line);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x','24');t.setAttribute('y',String(y+3));t.setAttribute('fill','#eef3f5');t.setAttribute('font-size','10');t.setAttribute('font-family','ui-monospace,SFMono-Regular,Menlo,monospace');t.setAttribute('font-weight','800');t.textContent=it.label;g.appendChild(t)});svg.appendChild(g)}
-function paintOverlay(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const svg=overlay();if(!svg)return;svg.replaceChildren();if(!rows.length)return;const legend=[];for(const p of periods){if(!$(`ema${p}`)?.checked)continue;const color=document.querySelector(`.emaColor[data-ema="${p}"]`)?.value||'#ffffff';if(addPath(svg,ema(rows,p),color,p===200?3:2.6))legend.push({label:`EMA ${p}`,color})}if($('cvdToggle')?.checked){const r=regression(rows),color='#7adff2';const ok=addPath(svg,r.mid,color,2.4);addPath(svg,r.up,color,1.5,'6 5');addPath(svg,r.down,color,1.5,'6 5');if(ok)legend.push({label:'SD REG',color})}addLegend(svg,legend)})}
-function paint(){paintOverlay();try{window.__QubicVolumeSeries?.applyOptions({visible:!!$('volToggle')?.checked})}catch{}const ant=$('antStatus');if(ant)ant.style.display=$('antToggle')?.checked?'':'none';return !!rows.length}
-function hookCandles(){const s=window.__QubicCandleSeries;if(!s||s===hookedSeries||typeof s.setData!=='function')return false;hookedSeries=s;const native=s.setData.bind(s);s.setData=data=>{rows=normalise(data);const out=native(data);setTimeout(paintOverlay,0);return out};return true}
-function subscribeChart(){if(subscribed||!window.__QubicChart)return;subscribed=true;try{window.__QubicChart.timeScale().subscribeVisibleTimeRangeChange(()=>paintOverlay());window.__QubicChart.timeScale().subscribeVisibleLogicalRangeChange(()=>paintOverlay())}catch{}addEventListener('resize',paintOverlay,{passive:true})}
-async function refresh(){if(loading)return;loading=true;try{hookCandles();subscribeChart();const tf=window.__QubicChartCore?.timeframe||$('qtf')?.value||$('tf')?.value||'15m';const r=await fetch(`/api/mobile-candles?interval=${encodeURIComponent(tf)}&limit=1000&indicator=1&t=${Date.now()}`,{cache:'no-store'}),j=await r.json();if(r.ok&&j?.ok&&Array.isArray(j.candles)){rows=normalise(j.candles);paint()}}catch(e){console.warn('indicator refresh',e)}finally{loading=false}}
-function save(id,val){try{localStorage.setItem('qIndicator:'+id,String(val))}catch{}}
-function restore(id,def){try{const v=localStorage.getItem('qIndicator:'+id);return v==null?def:v==='true'}catch{return def}}
-function migrate21(){try{const old=localStorage.getItem('qIndicator:ema21');if(localStorage.getItem('qIndicator:ema20')==null&&old!=null)localStorage.setItem('qIndicator:ema20',old);localStorage.removeItem('qIndicator:ema21')}catch{}}
-function bind(){migrate21();for(const p of periods){const box=$(`ema${p}`);if(box){box.checked=restore(`ema${p}`,false);box.addEventListener('change',()=>{save(`ema${p}`,box.checked);refresh();paintOverlay()})}const col=document.querySelector(`.emaColor[data-ema="${p}"]`);if(col)col.addEventListener('input',paintOverlay)}[['volToggle',true],['cvdToggle',true],['antToggle',true]].forEach(([id,def])=>{const e=$(id);if(e){e.checked=restore(id,def);e.addEventListener('change',()=>{save(id,e.checked);paint()})}});window.addEventListener('qubic:timeframe',()=>setTimeout(refresh,100));['tf','qtf'].forEach(id=>$(id)?.addEventListener('change',()=>setTimeout(refresh,120)));document.querySelectorAll('#quickTf [data-tf]').forEach(b=>b.addEventListener('click',()=>setTimeout(refresh,140)));let tries=0;const ready=setInterval(()=>{tries++;if(window.__QubicChart&&window.__QubicCandleSeries){hookCandles();subscribeChart();clearInterval(ready);refresh()}else if(tries>160)clearInterval(ready)},100);setTimeout(refresh,500);setInterval(()=>{if(!document.hidden){hookCandles();paintOverlay()}},750);setInterval(()=>{if(!document.hidden)refresh()},15000)}
+const PERIODS=[9,20,50,200];
+let rows=[],chart=null,candle=null,loading=false,hooked=false,lastTf='';
+const series={};
+
+function clean(a){
+  const m=new Map();
+  for(const x of Array.isArray(a)?a:[]){
+    const t=+x.time,c=+x.close,o=+x.open,h=+x.high,l=+x.low,v=+x.volume||0;
+    if(!Number.isFinite(t)||!(c>0))continue;
+    m.set(t,{time:t,open:o>0?o:c,high:h>0?h:c,low:l>0?l:c,close:c,volume:v});
+  }
+  return [...m.values()].sort((a,b)=>a.time-b.time);
+}
+function ema(a,n){
+  if(a.length<n)return[];
+  const k=2/(n+1),out=[];
+  let v=a.slice(0,n).reduce((s,x)=>s+x.close,0)/n;
+  out.push({time:a[n-1].time,value:v});
+  for(let i=n;i<a.length;i++){v=a[i].close*k+v*(1-k);out.push({time:a[i].time,value:v})}
+  return out;
+}
+function reg(a){
+  const n=Math.min(120,a.length);if(n<20)return{mid:[],up:[],dn:[]};
+  const z=a.slice(-n),sx=n*(n-1)/2,sxx=(n-1)*n*(2*n-1)/6,sy=z.reduce((s,x)=>s+x.close,0),sxy=z.reduce((s,x,i)=>s+i*x.close,0),den=n*sxx-sx*sx;
+  if(!den)return{mid:[],up:[],dn:[]};
+  const slope=(n*sxy-sx*sy)/den,intercept=(sy-slope*sx)/n;
+  const residual=z.map((x,i)=>x.close-(intercept+slope*i));
+  const sd=Math.sqrt(residual.reduce((s,x)=>s+x*x,0)/Math.max(1,n-2));
+  const mid=z.map((x,i)=>({time:x.time,value:intercept+slope*i}));
+  return{mid,up:mid.map(x=>({time:x.time,value:x.value+2*sd})),dn:mid.map(x=>({time:x.time,value:x.value-2*sd}))};
+}
+function color(n){return document.querySelector(`.emaColor[data-ema="${n}"]`)?.value||'#ffffff'}
+function addLine(opts){
+  if(!chart?.addLineSeries)return null;
+  return chart.addLineSeries({lastValueVisible:true,priceLineVisible:false,crosshairMarkerVisible:false,lineWidth:2,priceFormat:{type:'price',precision:10,minMove:.0000000001},...opts});
+}
+function ensureSeries(){
+  const c=window.__QubicChart;
+  if(!c)return false;
+  if(chart!==c){chart=c;for(const k of Object.keys(series))delete series[k]}
+  for(const n of PERIODS){if(!series[n])series[n]=addLine({color:color(n),lineWidth:n===200?3:2,visible:false,title:`EMA ${n}`})}
+  if(!series.regMid){
+    series.regMid=addLine({color:'#6fdff0',lineWidth:2,visible:false,title:'SD REG'});
+    series.regUp=addLine({color:'#6fdff0',lineWidth:1,lineStyle:2,visible:false,title:'SD +2'});
+    series.regDn=addLine({color:'#6fdff0',lineWidth:1,lineStyle:2,visible:false,title:'SD -2'});
+  }
+  return PERIODS.every(n=>!!series[n])&&!!series.regMid;
+}
+function draw(){
+  if(!rows.length||!ensureSeries())return false;
+  for(const n of PERIODS){
+    const on=!!$(`ema${n}`)?.checked;
+    try{series[n].setData(ema(rows,n));series[n].applyOptions({visible:on,color:color(n),lineWidth:n===200?3:2})}catch(e){console.warn('indicator EMA',n,e)}
+  }
+  const r=reg(rows),on=!!$('cvdToggle')?.checked;
+  try{series.regMid.setData(r.mid);series.regUp.setData(r.up);series.regDn.setData(r.dn);series.regMid.applyOptions({visible:on});series.regUp.applyOptions({visible:on});series.regDn.applyOptions({visible:on})}catch(e){console.warn('indicator regression',e)}
+  try{window.__QubicVolumeSeries?.applyOptions({visible:!!$('volToggle')?.checked})}catch{}
+  const ant=$('antStatus');if(ant)ant.style.display=$('antToggle')?.checked?'':'none';
+  window.__QubicIndicatorStatus={ready:true,timeframe:lastTf,rows:rows.length,enabled:PERIODS.filter(n=>$(`ema${n}`)?.checked),regression:on,updatedAt:Date.now()};
+  return true;
+}
+function hookCandleSeries(){
+  const s=window.__QubicCandleSeries;
+  if(!s||s===candle||typeof s.setData!=='function')return false;
+  candle=s;hooked=true;
+  const native=s.setData.bind(s);
+  s.setData=data=>{const out=native(data);const next=clean(data);if(next.length){rows=next;lastTf=window.__QubicChartCore?.timeframe||$('tf')?.value||'15m';setTimeout(draw,0)}return out};
+  return true;
+}
+async function refresh(){
+  if(loading)return;loading=true;
+  try{
+    hookCandleSeries();ensureSeries();
+    const tf=window.__QubicChartCore?.timeframe||$('qtf')?.value||$('tf')?.value||'15m';
+    lastTf=tf;
+    const r=await fetch(`/api/active-candles?interval=${encodeURIComponent(tf)}&limit=1000&indicator=1&t=${Date.now()}`,{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j?.ok&&Array.isArray(j.candles)&&j.candles.length){rows=clean(j.candles);draw()}
+  }catch(e){console.warn('indicator refresh',e)}finally{loading=false}
+}
+function save(id,v){try{localStorage.setItem('qIndicator:'+id,String(v))}catch{}}
+function restore(id,d){try{const v=localStorage.getItem('qIndicator:'+id);return v==null?d:v==='true'}catch{return d}}
+function bind(){
+  try{const old=localStorage.getItem('qIndicator:ema21');if(localStorage.getItem('qIndicator:ema20')==null&&old!=null)localStorage.setItem('qIndicator:ema20',old);localStorage.removeItem('qIndicator:ema21')}catch{}
+  for(const n of PERIODS){
+    const box=$(`ema${n}`);if(box){box.checked=restore(`ema${n}`,false);box.addEventListener('change',()=>{save(`ema${n}`,box.checked);draw();if(!rows.length)refresh()})}
+    document.querySelector(`.emaColor[data-ema="${n}"]`)?.addEventListener('input',draw);
+  }
+  for(const [id,d] of [['volToggle',true],['cvdToggle',true],['antToggle',true]]){const e=$(id);if(e){e.checked=restore(id,d);e.addEventListener('change',()=>{save(id,e.checked);draw()})}}
+  window.addEventListener('qubic:timeframe',()=>setTimeout(refresh,80));
+  ['tf','qtf'].forEach(id=>$(id)?.addEventListener('change',()=>setTimeout(refresh,100)));
+  document.querySelectorAll('#quickTf [data-tf]').forEach(b=>b.addEventListener('click',()=>setTimeout(refresh,120)));
+  let n=0;const ready=setInterval(()=>{n++;hookCandleSeries();if(ensureSeries()){clearInterval(ready);refresh()}else if(n>200)clearInterval(ready)},100);
+  setTimeout(refresh,450);setInterval(()=>{if(!document.hidden)refresh()},15000);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
-window.__QubicIndicators={refresh,paint,get rows(){return rows.slice()}};
+window.__QubicIndicators={refresh,draw,get rows(){return rows.slice()},get status(){return window.__QubicIndicatorStatus||{ready:false}}};
 })();

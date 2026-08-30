@@ -1,11 +1,25 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "qubic-live-chart-0-01v",
-  "main": "./cloudflare/worker-v3.js",
+  "main": "./cloudflare/worker-v4.js",
   "compatibility_date": "2026-08-30",
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "QUBIC_STATE_DO",
+        "class_name": "QubicState"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["QubicState"]
+    }
+  ]
 }

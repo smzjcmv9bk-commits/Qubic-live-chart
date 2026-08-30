@@ -7,16 +7,7 @@ async function seedPersistentLearning(){
     if(!r.ok||!j?.ok) return;
     const lh=safeParse('qPredHistoryV9','[]');
     const ls=safeParse('qPredStateV9','[]');
-    const rh=(j.history||[]).filter(x=>x?.done===true).map(x=>({
-      bucket:+x.bucket||Math.floor((+x.createdAt||0)/3600000)*3600,
-      price:+x.price||0,
-      dir:x.dir||'NEUTRAL',
-      confidence:+(x.confidence??x.conf??0),
-      cluster:x.cluster||'',
-      done:true,
-      move:Number.isFinite(+x.move)?+x.move:undefined,
-      correct:typeof x.correct==='boolean'?x.correct:undefined
-    })).filter(x=>x.bucket&&x.price>0);
+    const rh=(j.history||[]).filter(x=>x?.done===true).map(x=>({bucket:+x.bucket||Math.floor((+x.createdAt||0)/3600000)*3600,price:+x.price||0,dir:x.dir||'NEUTRAL',confidence:+(x.confidence??x.conf??0),cluster:x.cluster||'',done:true,move:Number.isFinite(+x.move)?+x.move:undefined,correct:typeof x.correct==='boolean'?x.correct:undefined})).filter(x=>x.bucket&&x.price>0);
     const rs=(j.stateMem||[]).map(x=>({t:+x.t||Date.now(),regime:x.regime||'RANGING',trend:+x.trend||0,momentum:+x.momentum||0,flow:+x.flow||0,book:+x.book||0}));
     localStorage.setItem('qPredHistoryV9',JSON.stringify(uniqMerge(rh,lh).slice(-360)));
     localStorage.setItem('qPredStateV9',JSON.stringify(uniqMerge(rs,ls).slice(-180)));
@@ -25,15 +16,21 @@ async function seedPersistentLearning(){
 }
 function loadV9(){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/prediction-v9.js?v=3';s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
 let avwap=null;
-async function refreshAVWAP(){
-  try{const r=await fetch('/api/avwap-signal?ts='+Date.now(),{cache:'no-store'}),j=await r.json();if(!r.ok||!j?.ok)throw Error(j?.error||r.status);avwap=j;window.QUBIC_AVWAP=j;paintAVWAP()}catch(e){window.QUBIC_AVWAP=null;paintAVWAP(true)}}
+async function refreshAVWAP(){try{const r=await fetch('/api/avwap-signal?ts='+Date.now(),{cache:'no-store'}),j=await r.json();if(!r.ok||!j?.ok)throw Error(j?.error||r.status);avwap=j;window.QUBIC_AVWAP=j;paintAVWAP()}catch(e){window.QUBIC_AVWAP=null;paintAVWAP(true)}}
 function paintAVWAP(failed=false){
-  const p=document.getElementById('predictionPanel'); if(!p)return;
+  const p=document.getElementById('predictionPanel');if(!p)return;
   let el=document.getElementById('predAvwap');
-  if(!el){el=document.createElement('div');el.id='predAvwap';el.style.cssText='margin-top:7px;border:1px solid #263746;border-radius:7px;padding:8px;font:800 8px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;color:#c9d8e0;background:#0a121b';const book=document.getElementById('predBook');(book||p).insertAdjacentElement(book?'afterend':'beforeend',el)}
-  if(failed||!avwap){el.textContent='AVWAP · CONNECTING';return}
-  const pinch=avwap.pinchFrames?.length?' · PINCH '+avwap.pinchFrames.join('/') : '';
-  el.textContent=`AVWAP ${avwap.direction} · ALIGN ${avwap.alignment}% · STRENGTH ${avwap.strength}%${pinch}`;
+  if(!el){el=document.createElement('div');el.id='predAvwap';el.style.cssText='margin-top:9px;border:1px solid #263746;border-radius:10px;padding:10px 11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#d8e5eb;background:#0a121b;text-align:left;line-height:1.35';const book=document.getElementById('predBook');(book||p).insertAdjacentElement(book?'afterend':'beforeend',el)}
+  if(failed||!avwap){el.innerHTML='<div style="font-size:10px;font-weight:900">AVWAP SIGNAL</div><div style="margin-top:5px;font-size:9px;color:#8fa6b2">Connecting to multi-timeframe AVWAP…</div>';return}
+  const dir=String(avwap.direction||'NEUTRAL').toUpperCase();
+  const align=Math.round(+avwap.alignment||0),strength=Math.round(+avwap.strength||0);
+  const bullish=dir==='UP'||dir==='BULLISH',bearish=dir==='DOWN'||dir==='BEARISH';
+  const label=bullish?'BULLISH / PRICE PRESSURE UP':bearish?'BEARISH / PRICE PRESSURE DOWN':'MIXED / NO CLEAR EDGE';
+  const action=align>=75&&strength>=70?(bullish?'STRONG UPSIDE CONFLUENCE':bearish?'STRONG DOWNSIDE CONFLUENCE':'WAIT FOR DIRECTION'):align>=60&&strength>=55?(bullish?'MODERATE UPSIDE BIAS':bearish?'MODERATE DOWNSIDE BIAS':'WAIT / MIXED'):'LOW CONVICTION — WAIT';
+  const pinch=Array.isArray(avwap.pinchFrames)&&avwap.pinchFrames.length?`Compression on ${avwap.pinchFrames.join(', ')} — expansion/breakout risk is elevated.`:'No major AVWAP compression detected.';
+  const frames=avwap.frames||avwap.timeframes||{};
+  const frameText=Object.entries(frames).slice(0,4).map(([tf,v])=>{const d=String(v?.direction??v?.dir??v?.state??'').toUpperCase();return `${tf}: ${d||'—'}`}).join('  ·  ');
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-size:10px;font-weight:900">AVWAP SIGNAL</span><span style="font-size:10px;font-weight:900">${dir}</span></div><div style="margin-top:6px;font-size:11px;font-weight:900">${label}</div><div style="margin-top:7px;display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="border:1px solid #263746;border-radius:7px;padding:6px"><span style="font-size:8px;color:#8fa6b2">TIMEFRAME AGREEMENT</span><br><b style="font-size:12px">${align}%</b></div><div style="border:1px solid #263746;border-radius:7px;padding:6px"><span style="font-size:8px;color:#8fa6b2">SIGNAL STRENGTH</span><br><b style="font-size:12px">${strength}%</b></div></div><div style="margin-top:7px;font-size:9px"><b>READ:</b> ${action}</div><div style="margin-top:5px;font-size:8px;color:#9db1bb">${pinch}</div>${frameText?`<div style="margin-top:6px;font-size:8px;color:#9db1bb">${frameText}</div>`:''}<div style="margin-top:6px;font-size:7px;color:#708792">AVWAP is confluence evidence, not a guaranteed price target. Updates every 15s.</div>`;
 }
 (async()=>{await seedPersistentLearning();await loadV9();setTimeout(refreshAVWAP,900);setInterval(refreshAVWAP,15000);setInterval(seedPersistentLearning,300000)})().catch(e=>console.warn('v9 loader',e));
 })();

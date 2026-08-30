@@ -14,7 +14,8 @@ async function seedPersistentLearning(){
     localStorage.setItem('qPredRemoteMetaV9',JSON.stringify({updatedAt:j.updatedAt||null,runCount:j.runCount||0,global:j.global||null,syncedAt:Date.now()}));
   }catch(e){console.warn('v9 persistent learning sync',e)}
 }
-function loadV9(){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/prediction-v9.js?v=3';s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
+function loadScript(src,key){return new Promise((resolve,reject)=>{if(key&&document.querySelector(`script[data-${key}]`))return resolve();const s=document.createElement('script');s.src=src;if(key)s.setAttribute(`data-${key}`,'1');s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
+function loadV9(){return loadScript('/prediction-v9.js?v=3','prediction-v9')}
 let avwap=null;
 async function refreshAVWAP(){try{const r=await fetch('/api/avwap-signal?ts='+Date.now(),{cache:'no-store'}),j=await r.json();if(!r.ok||!j?.ok)throw Error(j?.error||r.status);avwap=j;window.QUBIC_AVWAP=j;paintAVWAP()}catch(e){window.QUBIC_AVWAP=null;paintAVWAP(true)}}
 function paintAVWAP(failed=false){
@@ -29,8 +30,17 @@ function paintAVWAP(failed=false){
   const action=align>=75&&strength>=70?(bullish?'STRONG UPSIDE CONFLUENCE':bearish?'STRONG DOWNSIDE CONFLUENCE':'WAIT FOR DIRECTION'):align>=60&&strength>=55?(bullish?'MODERATE UPSIDE BIAS':bearish?'MODERATE DOWNSIDE BIAS':'WAIT / MIXED'):'LOW CONVICTION — WAIT';
   const pinch=Array.isArray(avwap.pinchFrames)&&avwap.pinchFrames.length?`Compression on ${avwap.pinchFrames.join(', ')} — expansion/breakout risk is elevated.`:'No major AVWAP compression detected.';
   const frames=avwap.frames||avwap.timeframes||{};
-  const frameText=Object.entries(frames).slice(0,4).map(([tf,v])=>{const d=String(v?.direction??v?.dir??v?.state??'').toUpperCase();return `${tf}: ${d||'—'}`}).join('  ·  ');
+  const list=Array.isArray(frames)?frames:Object.entries(frames).map(([tf,v])=>({tf,...v}));
+  const frameText=list.slice(0,4).map(v=>`${v.tf||'—'}: ${String(v.direction??v.dir??v.state??'—').toUpperCase()}`).join('  ·  ');
   el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-size:10px;font-weight:900">AVWAP SIGNAL</span><span style="font-size:10px;font-weight:900">${dir}</span></div><div style="margin-top:6px;font-size:11px;font-weight:900">${label}</div><div style="margin-top:7px;display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="border:1px solid #263746;border-radius:7px;padding:6px"><span style="font-size:8px;color:#8fa6b2">TIMEFRAME AGREEMENT</span><br><b style="font-size:12px">${align}%</b></div><div style="border:1px solid #263746;border-radius:7px;padding:6px"><span style="font-size:8px;color:#8fa6b2">SIGNAL STRENGTH</span><br><b style="font-size:12px">${strength}%</b></div></div><div style="margin-top:7px;font-size:9px"><b>READ:</b> ${action}</div><div style="margin-top:5px;font-size:8px;color:#9db1bb">${pinch}</div>${frameText?`<div style="margin-top:6px;font-size:8px;color:#9db1bb">${frameText}</div>`:''}<div style="margin-top:6px;font-size:7px;color:#708792">AVWAP is confluence evidence, not a guaranteed price target. Updates every 15s.</div>`;
 }
-(async()=>{await seedPersistentLearning();await loadV9();setTimeout(refreshAVWAP,900);setInterval(refreshAVWAP,15000);setInterval(seedPersistentLearning,300000)})().catch(e=>console.warn('v9 loader',e));
+(async()=>{
+  await seedPersistentLearning();
+  await loadScript('/prediction-data-bridge.js?v=1','prediction-data-bridge');
+  loadScript('/system-integrity.js?v=1','system-integrity').catch(()=>{});
+  await loadV9();
+  setTimeout(refreshAVWAP,900);
+  setInterval(refreshAVWAP,15000);
+  setInterval(seedPersistentLearning,300000)
+})().catch(e=>console.warn('v9 loader',e));
 })();

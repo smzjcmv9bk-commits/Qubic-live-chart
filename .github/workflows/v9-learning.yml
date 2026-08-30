@@ -1,14 +1,24 @@
-name: V9 24x7 Learning
+name: Unified Qubic 24x7 Learning
 on:
   push:
     branches: [main]
     paths:
-      - 'index.html'
       - 'v9-loader.js'
       - 'prediction-v9.js'
+      - 'pattern-intelligence.js'
+      - 'avwap-intelligence.js'
+      - 'api/active-candles.js'
+      - 'api/orderbook.js'
+      - 'api/live-trades.js'
+      - 'api/market-summary.js'
       - 'api/avwap-signal.js'
+      - 'api/pattern-scan.js'
+      - 'api/ant-score.js'
+      - 'api/network-status.js'
       - 'api/mobile-learning.js'
+      - 'api/early-learning.js'
       - 'scripts/learning-worker.mjs'
+      - 'scripts/early-structure-worker.mjs'
       - '.github/workflows/v9-learning.yml'
   schedule:
     - cron: '*/15 * * * *'
@@ -16,18 +26,22 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: v9-learning
+  group: unified-qubic-learning
   cancel-in-progress: false
 jobs:
   learn:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Run V9 learner
+      - name: Run unified market learner
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/learning-worker.mjs
+      - name: Run early structure learner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/early-structure-worker.mjs

@@ -7,13 +7,13 @@ async function seedPersistentLearning(){
     if(!r.ok||!j?.ok) return;
     const lh=safeParse('qPredHistoryV9','[]');
     const ls=safeParse('qPredStateV9','[]');
-    const rh=(j.history||[]).map(x=>({
+    const rh=(j.history||[]).filter(x=>x?.done===true).map(x=>({
       bucket:+x.bucket||Math.floor((+x.createdAt||0)/3600000)*3600,
       price:+x.price||0,
       dir:x.dir||'NEUTRAL',
       confidence:+(x.confidence??x.conf??0),
       cluster:x.cluster||'',
-      done:!!x.done,
+      done:true,
       move:Number.isFinite(+x.move)?+x.move:undefined,
       correct:typeof x.correct==='boolean'?x.correct:undefined
     })).filter(x=>x.bucket&&x.price>0);

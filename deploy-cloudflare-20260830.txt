@@ -1,0 +1,1 @@
+Trigger Cloudflare deployment of the cloudflare-rebuild branch with native Workers runtime, AVWAP, order-book, pattern scan, learning state, and persistent prediction memory.

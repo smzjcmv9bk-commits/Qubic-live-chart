@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "qubic-live-chart-0-01v",
-  "main": "./cloudflare/worker.js",
+  "main": "./cloudflare/worker-v2.js",
   "compatibility_date": "2026-08-30",
   "assets": {
     "directory": ".",

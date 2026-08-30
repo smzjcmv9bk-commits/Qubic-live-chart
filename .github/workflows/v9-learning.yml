@@ -1,5 +1,15 @@
 name: V9 24x7 Learning
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'v9-loader.js'
+      - 'prediction-v9.js'
+      - 'api/avwap-signal.js'
+      - 'api/mobile-learning.js'
+      - 'scripts/learning-worker.mjs'
+      - '.github/workflows/v9-learning.yml'
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:

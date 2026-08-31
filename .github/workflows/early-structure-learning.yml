@@ -1,12 +1,10 @@
-name: Early Structure 24x7 Learning
+name: Early Structure Learning Fallback
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
-  group: early-structure-learning
+  group: early-structure-learning-fallback
   cancel-in-progress: false
 jobs:
   learn:

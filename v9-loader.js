@@ -37,10 +37,11 @@ function paintAVWAP(failed=false){
 (async()=>{
   await seedPersistentLearning();
   await loadScript('/prediction-data-bridge.js?v=1','prediction-data-bridge');
+  await loadScript('/original-controls.js?v=5','original-controls').catch(e=>console.warn('trade sound controls loader',e));
   loadScript('/system-integrity.js?v=1','system-integrity').catch(()=>{});
   await loadV9();
   await loadScript('/paper-trading-bot.js?v=2','paper-trading-bot').catch(e=>console.warn('paper bot loader',e));
-  loadScript('/paper-trading-chart-markers.js?v=4','paper-trading-chart-markers').catch(e=>console.warn('paper chart marker loader',e));
+  loadScript('/paper-trading-chart-markers.js?v=5','paper-trading-chart-markers').catch(e=>console.warn('paper chart marker loader',e));
   setTimeout(refreshAVWAP,900);
   setInterval(refreshAVWAP,15000);
   setInterval(seedPersistentLearning,300000)

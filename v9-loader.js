@@ -39,6 +39,7 @@ function paintAVWAP(failed=false){
   await loadScript('/prediction-data-bridge.js?v=1','prediction-data-bridge');
   loadScript('/system-integrity.js?v=1','system-integrity').catch(()=>{});
   await loadV9();
+  loadScript('/paper-trading-bot.js?v=1','paper-trading-bot').catch(e=>console.warn('paper bot loader',e));
   setTimeout(refreshAVWAP,900);
   setInterval(refreshAVWAP,15000);
   setInterval(seedPersistentLearning,300000)

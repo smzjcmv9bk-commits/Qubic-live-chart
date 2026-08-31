@@ -5,6 +5,7 @@ on:
     paths:
       - 'v9-loader.js'
       - 'prediction-v9.js'
+      - 'v10-dashboard.js'
       - 'pattern-intelligence.js'
       - 'avwap-intelligence.js'
       - 'api/active-candles.js'
@@ -16,8 +17,10 @@ on:
       - 'api/ant-score.js'
       - 'api/network-status.js'
       - 'api/mobile-learning.js'
+      - 'api/v10-learning.js'
       - 'api/early-learning.js'
       - 'scripts/learning-worker.mjs'
+      - 'scripts/v10-challenger-worker.mjs'
       - 'scripts/early-structure-worker.mjs'
       - '.github/workflows/v9-learning.yml'
   schedule:
@@ -31,7 +34,7 @@ concurrency:
 jobs:
   learn:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +44,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/learning-worker.mjs
+      - name: Run V10 evolutionary challenger
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/v10-challenger-worker.mjs
       - name: Run early structure learner
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

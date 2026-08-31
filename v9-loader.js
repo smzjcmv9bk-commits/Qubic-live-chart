@@ -40,7 +40,7 @@ function paintAVWAP(failed=false){
   loadScript('/system-integrity.js?v=1','system-integrity').catch(()=>{});
   await loadV9();
   await loadScript('/paper-trading-bot.js?v=2','paper-trading-bot').catch(e=>console.warn('paper bot loader',e));
-  loadScript('/paper-trading-chart-markers.js?v=2','paper-trading-chart-markers').catch(e=>console.warn('paper chart marker loader',e));
+  loadScript('/paper-trading-chart-markers.js?v=3','paper-trading-chart-markers').catch(e=>console.warn('paper chart marker loader',e));
   setTimeout(refreshAVWAP,900);
   setInterval(refreshAVWAP,15000);
   setInterval(seedPersistentLearning,300000)

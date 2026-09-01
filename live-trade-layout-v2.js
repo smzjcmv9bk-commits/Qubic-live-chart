@@ -33,7 +33,7 @@ function addCss(){if($('qLiveTradeLayoutCss'))$('qLiveTradeLayoutCss').remove();
 @media(max-width:700px){#qp + .tape{margin-top:10px!important}.trade{min-height:29px}.trade.qPrintWhale{min-height:33px}.trade .qSizeTag{font-size:6px;padding:2px 4px}}
 @media(prefers-reduced-motion:reduce){.trade.qTapeNew,.trade.qPrintLarge,.trade.qPrintWhale,.trade.qPrintWhale:after{animation:none!important}}
 `;document.head.appendChild(s)}
-function arrange(){const qp=$('qp'),tape=document.querySelector('.tape');if(!qp||!tape)return;if(qp.nextElementSibling!==tape)qp.insertAdjacentElement('afterend',tape);let anchor=tape;const order=['predictionPanel','paperBotPanel','runtimeHealth','networkPanel','analytics'];for(const id of order){const el=$(id);if(!el||el===anchor)continue;if(anchor.nextElementSibling!==el)anchor.insertAdjacentElement('afterend',el);anchor=el}}
+function arrange(){if($('qLowerGrid'))return;const qp=$('qp'),tape=document.querySelector('.tape');if(!qp||!tape)return;if(qp.nextElementSibling!==tape)qp.insertAdjacentElement('afterend',tape);let anchor=tape;const order=['predictionPanel','paperBotPanel','runtimeHealth','networkPanel','analytics'];for(const id of order){const el=$(id);if(!el||el===anchor)continue;if(anchor.nextElementSibling!==el)anchor.insertAdjacentElement('afterend',el);anchor=el}}
 function sig(row){return (row.classList.contains('sell')?'S|':'B|')+(row.textContent||'').replace(/\s+/g,' ').trim()}
 function parseUsdText(v){const s=String(v||'').replace(/[$,\s]/g,'').toUpperCase(),m=s.match(/^(-?[0-9]*\.?[0-9]+)([KMB])?$/);if(!m)return 0;let n=+m[1]||0;if(m[2]==='K')n*=1e3;else if(m[2]==='M')n*=1e6;else if(m[2]==='B')n*=1e9;return n}
 function usd(row){return parseUsdText(row.querySelector('.usd')?.textContent)}

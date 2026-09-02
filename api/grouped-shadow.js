@@ -1,0 +1,10 @@
+export default async function handler(req,res){
+  res.setHeader('Cache-Control','no-store, max-age=0');
+  try{
+    const u='https://raw.githubusercontent.com/smzjcmv9bk-commits/Qubic-live-chart/learning-data/learning/v9-grouped-shadow.json?t='+Date.now();
+    const r=await fetch(u,{cache:'no-store',headers:{'user-agent':'QubicGroupedShadowAPI/1.0'}});
+    if(!r.ok)throw new Error('shadow state '+r.status);
+    const data=await r.json();
+    res.status(200).json({ok:true,...data});
+  }catch(e){res.status(503).json({ok:false,error:String(e?.message||e)});}
+}

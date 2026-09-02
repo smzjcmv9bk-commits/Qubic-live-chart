@@ -19,7 +19,9 @@ on:
       - 'api/mobile-learning.js'
       - 'api/v10-learning.js'
       - 'api/early-learning.js'
+      - 'api/grouped-shadow.js'
       - 'scripts/learning-worker.mjs'
+      - 'scripts/grouped-signal-shadow-worker.mjs'
       - 'scripts/v10-challenger-worker.mjs'
       - 'scripts/early-structure-worker.mjs'
       - '.github/workflows/v9-learning.yml'
@@ -44,6 +46,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/learning-worker.mjs
+      - name: Run grouped signal shadow learner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/grouped-signal-shadow-worker.mjs
       - name: Run V10 evolutionary challenger
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/composite-hourly", "destination": "/api/active-candles?interval=1h&limit=1000&composite=1" }
+  ],
   "git": {
     "deploymentEnabled": {
       "learning-data": false

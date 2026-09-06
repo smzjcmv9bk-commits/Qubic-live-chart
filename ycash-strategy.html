@@ -1,14 +1,324 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Ycash Live Strategy</title><style>
-:root{--bg:#05080c;--panel:#0b1118;--line:#1d2a38;--text:#eef4fb;--muted:#8492a6;--green:#14c784;--red:#f05b69;--gold:#f6c84a}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.4 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1500px;margin:auto;padding:14px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.brand h1{font-size:20px;margin:0}.brand p{margin:3px 0 0;color:var(--muted)}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #254936;background:#0b1c15;color:#b4e9cc;border-radius:999px;padding:7px 10px}.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px}.head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.pair{font-weight:800;font-size:15px}.price{font-size:28px;font-weight:900;letter-spacing:-.03em;margin-top:2px}.muted{color:var(--muted)}.pos{color:var(--green)}.neg{color:var(--red)}.chartbox{height:620px;position:relative}.chartbox canvas{width:100%;height:100%;display:block}.status{position:absolute;left:12px;top:10px;border:1px solid #263548;background:rgba(5,8,12,.9);padding:5px 8px;border-radius:7px;color:#aeb8c6;font-size:10px}.signal{padding:14px}.signalBox{border:1px solid var(--line);background:#0e1620;border-radius:12px;padding:14px;margin-bottom:10px}.signalState{font-size:24px;font-weight:900}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.metric{background:#0a1119;border:1px solid #182432;border-radius:9px;padding:9px}.metric .v{font-weight:800;margin-top:2px}.form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.form label{font-size:10px;color:var(--muted)}input,select{width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #29394c;background:#0d1520;color:var(--text)}button{width:100%;padding:9px;margin-top:10px;border:1px solid #6d5a1c;background:#2b2411;color:#ffe48a;border-radius:8px;font-weight:800}.rules{font-size:11px;color:#aeb8c6}.rules b{color:#fff}.foot{color:#677588;font-size:10px;margin-top:10px}.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--muted)}.sw{width:9px;height:3px;display:inline-block;margin-right:4px;vertical-align:middle}.green{background:var(--green)}.red{background:var(--red)}.gold{background:var(--gold)}@media(max-width:950px){.grid{grid-template-columns:1fr}.chartbox{height:500px}}@media(max-width:600px){.wrap{padding:8px}.top{align-items:flex-start}.chartbox{height:430px}.price{font-size:23px}.form{grid-template-columns:1fr 1fr}}
-</style></head><body><div class="wrap"><div class="top"><div class="brand"><h1>Ycash Live Strategy</h1><p>EMA 20/50 + RSI confirmation · composite YEC/USD market</p></div><div class="pill"><span class="dot"></span><span id="live">Connecting</span></div></div><div class="grid"><section class="card"><div class="head"><div><div class="pair">YEC / USD · 1H Composite Strategy</div><div><span class="price" id="price">—</span> <span id="chg" class="muted">—</span></div><div class="muted" id="ohlc">O — H — L — C —</div></div><div style="text-align:right"><div class="muted">RSI</div><div style="font-weight:800;font-size:18px" id="rsi">—</div><div class="legend"><span><i class="sw green"></i>EMA 20</span><span><i class="sw gold"></i>EMA 50</span></div></div></div><div class="chartbox"><canvas id="chart"></canvas><div class="status" id="status">Loading 1H YEC composite candles…</div></div></section><aside class="card signal"><div class="signalBox"><div class="muted">Current strategy state</div><div class="signalState" id="state">WAIT</div><div class="muted" id="reason">Waiting for enough live history.</div><div class="metrics"><div class="metric"><div class="muted">Entry</div><div class="v" id="entry">—</div></div><div class="metric"><div class="muted">Stop loss</div><div class="v" id="stop">—</div></div><div class="metric"><div class="muted">Take profit</div><div class="v" id="target">—</div></div><div class="metric"><div class="muted">Risk / trade</div><div class="v" id="riskDisplay">1%</div></div></div></div><div class="signalBox"><div class="pair" style="margin-bottom:8px">Strategy settings</div><div class="form"><label>Fast EMA<input id="fast" type="number" value="20" min="2"></label><label>Slow EMA<input id="slow" type="number" value="50" min="3"></label><label>RSI length<input id="rsiLen" type="number" value="14" min="2"></label><label>RSI trigger<input id="rsiTrig" type="number" value="50" min="1" max="99"></label><label>Risk %<input id="risk" type="number" value="1" min="0.1" max="20" step="0.1"></label><label>Stop %<input id="sl" type="number" value="2" min="0.1" step="0.1"></label><label>Target %<input id="tp" type="number" value="4" min="0.1" step="0.1"></label><label>Paper equity $<input id="equity" type="number" value="10000" min="100"></label></div><button id="apply">Apply settings</button></div><div class="signalBox rules"><b>Long:</b> EMA 20 crosses above EMA 50 and RSI &gt; 50.<br><b>Short:</b> EMA 20 crosses below EMA 50 and RSI &lt; 50.<br><b>Risk:</b> position size is estimated so the selected stop represents the chosen % of paper equity.</div><div class="foot">Signals are informational/paper-strategy outputs. They do not place trades or connect to an exchange account.</div></aside></div></div><script>
-const CG='https://api.coingecko.com/api/v3';const $=id=>document.getElementById(id);let candles=[],settings={fast:20,slow:50,rsiLen:14,rsiTrig:50,risk:1,sl:2,tp:4,equity:10000};
-const fmt=n=>Number.isFinite(+n)?'$'+(+n).toLocaleString('en-US',{minimumFractionDigits:+n<1?4:2,maximumFractionDigits:+n<.01?7:+n<1?5:2}):'—';const nfmt=(n,d=2)=>Number.isFinite(+n)?(+n).toLocaleString('en-US',{maximumFractionDigits:d}):'—';
-function ema(vals,len){let out=new Array(vals.length).fill(null);if(vals.length<len)return out;let k=2/(len+1),s=vals.slice(0,len).reduce((a,b)=>a+b,0)/len;out[len-1]=s;for(let i=len;i<vals.length;i++){s=vals[i]*k+s*(1-k);out[i]=s}return out}
-function rsi(vals,len){let out=new Array(vals.length).fill(null);if(vals.length<=len)return out;let g=0,l=0;for(let i=1;i<=len;i++){let d=vals[i]-vals[i-1];if(d>=0)g+=d;else l-=d}g/=len;l/=len;out[len]=l===0?100:100-100/(1+g/l);for(let i=len+1;i<vals.length;i++){let d=vals[i]-vals[i-1],gg=Math.max(d,0),ll=Math.max(-d,0);g=(g*(len-1)+gg)/len;l=(l*(len-1)+ll)/len;out[i]=l===0?100:100-100/(1+g/l)}return out}
-function aggregate(points){let m=new Map(),ms=3600000;for(let q of points||[]){let t=Math.floor(q[0]/ms)*ms,p=+q[1];if(!Number.isFinite(p))continue;let x=m.get(t);if(!x)m.set(t,{t,o:p,h:p,l:p,c:p});else{x.h=Math.max(x.h,p);x.l=Math.min(x.l,p);x.c=p}}return[...m.values()].sort((a,b)=>a.t-b.t)}
-async function load(){try{$('status').textContent='Loading 1H YEC composite candles…';let [hr,tr]=await Promise.all([fetch(CG+'/coins/ycash/market_chart?vs_currency=usd&days=14',{cache:'no-store'}),fetch(CG+'/coins/ycash/tickers',{cache:'no-store'})]);if(!hr.ok||!tr.ok)throw Error('feed');let hist=await hr.json(),tj=await tr.json();candles=aggregate(hist.prices).slice(-340);let tt=(tj.tickers||[]).filter(x=>x.base==='YEC'&&!x.is_stale&&!x.is_anomaly&&+x.converted_last?.usd>0);let w=0,s=0;for(let x of tt){let v=Math.max(1,+x.converted_volume?.usd||1);s+=+x.converted_last.usd*v;w+=v}let live=w?s/w:candles.at(-1)?.c;if(live){let t=Math.floor(Date.now()/3600000)*3600000,c=candles.at(-1);if(!c||c.t<t)candles.push({t,o:live,h:live,l:live,c:live});else{c.h=Math.max(c.h,live);c.l=Math.min(c.l,live);c.c=live}}$('live').textContent='Live composite';$('status').textContent='1H composite · '+tt.length+' active YEC markets';calc();draw()}catch(e){$('live').textContent='Retrying';$('status').textContent='Live market feed unavailable';}}
-function calc(){if(candles.length<settings.slow+2)return;let cls=candles.map(x=>x.c),ef=ema(cls,settings.fast),es=ema(cls,settings.slow),rr=rsi(cls,settings.rsiLen),i=cls.length-1,p=i-1;let c=candles[i],longCross=ef[p]!=null&&es[p]!=null&&ef[p]<=es[p]&&ef[i]>es[i],shortCross=ef[p]>=es[p]&&ef[i]<es[i],long=longCross&&rr[i]>settings.rsiTrig,short=shortCross&&rr[i]<settings.rsiTrig;$('price').textContent=fmt(c.c);$('rsi').textContent=nfmt(rr[i],1);$('ohlc').textContent=`O ${nfmt(c.o,6)}  H ${nfmt(c.h,6)}  L ${nfmt(c.l,6)}  C ${nfmt(c.c,6)}`;let st='WAIT',reason='No fresh EMA crossover confirmation on the current 1H candle.';if(long){st='BUY';reason=`EMA ${settings.fast} crossed above EMA ${settings.slow} and RSI is ${nfmt(rr[i],1)}.`}else if(short){st='SELL';reason=`EMA ${settings.fast} crossed below EMA ${settings.slow} and RSI is ${nfmt(rr[i],1)}.`}let se=$('state');se.textContent=st;se.className='signalState '+(st==='BUY'?'pos':st==='SELL'?'neg':'');$('reason').textContent=reason;let e=c.c,sl=st==='SELL'?e*(1+settings.sl/100):e*(1-settings.sl/100),tp=st==='SELL'?e*(1-settings.tp/100):e*(1+settings.tp/100),riskCash=settings.equity*settings.risk/100,qty=riskCash/(e*settings.sl/100);$('entry').textContent=fmt(e);$('stop').textContent=fmt(sl);$('target').textContent=fmt(tp);$('riskDisplay').textContent=`${settings.risk}% · ${nfmt(qty,0)} YEC`;window._emaF=ef;window._emaS=es;window._rsi=rr}
-$('apply').onclick=()=>{for(let k of ['fast','slow','rsiLen','rsiTrig','risk','sl','tp','equity'])settings[k]=+$(k).value;calc();draw()};
-const cv=$('chart'),ctx=cv.getContext('2d');function draw(){let R=cv.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=R.width*d;cv.height=R.height*d;ctx.setTransform(d,0,0,d,0,0);let W=R.width,H=R.height;ctx.fillStyle='#070c12';ctx.fillRect(0,0,W,H);if(!candles.length)return;let data=candles.slice(-120),ofs=candles.length-data.length,ef=window._emaF||[],es=window._emaS||[];let hi=Math.max(...data.map(x=>x.h)),lo=Math.min(...data.map(x=>x.l));for(let i=ofs;i<candles.length;i++){if(ef[i]){hi=Math.max(hi,ef[i]);lo=Math.min(lo,ef[i])}if(es[i]){hi=Math.max(hi,es[i]);lo=Math.min(lo,es[i])}}let pad=(hi-lo||1)*.08;hi+=pad;lo-=pad;let pr=70,b=24,y=p=>8+(hi-p)/(hi-lo)*(H-b-16),step=(W-pr)/data.length,x=i=>i*step+step/2,bw=Math.max(2,Math.min(8,step*.55));ctx.strokeStyle='#13202c';ctx.font='10px sans-serif';for(let j=0;j<=6;j++){let yy=8+j*(H-b-16)/6;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W-pr,yy);ctx.stroke();ctx.fillStyle='#758399';ctx.fillText(nfmt(hi-j*(hi-lo)/6,6),W-pr+6,yy+3)}data.forEach((c,i)=>{let xx=x(i),up=c.c>=c.o,col=up?'#14c784':'#f05b69';ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(xx,y(c.h));ctx.lineTo(xx,y(c.l));ctx.stroke();ctx.fillRect(xx-bw/2,Math.min(y(c.o),y(c.c)),bw,Math.max(1,Math.abs(y(c.o)-y(c.c))))});function line(arr,color){ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.beginPath();let started=false;for(let i=0;i<data.length;i++){let v=arr[ofs+i];if(v==null)continue;let xx=x(i),yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)}ctx.stroke()}line(ef,'#14c784');line(es,'#f6c84a')}
-window.addEventListener('resize',draw);load();setInterval(load,15000);
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ycash Pro Strategy Terminal</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#05070b;--panel:#0b1118;--panel2:#0e151f;--line:#1b2734;--text:#eef4fb;--muted:#7f8ea1;--green:#18c889;--red:#f05b69;--gold:#f6c84a;--blue:#4da3ff}
+*{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{font-size:13px}.app{min-height:100vh}.topbar{height:58px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#071019;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:10px}.coin{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#16120a;font-weight:900;font-size:16px}.brandTitle{font-weight:800}.sub{font-size:10px;color:var(--muted);margin-top:2px}
+.live{display:flex;align-items:center;gap:7px;color:#afe5c9;border:1px solid #244836;background:#0a1b14;padding:6px 9px;border-radius:999px;font-size:10px}.liveDot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 0 4px rgba(24,200,137,.12)}
+.shell{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:calc(100vh - 58px)}
+.main{min-width:0;border-right:1px solid var(--line)}.quote{padding:10px 12px;border-bottom:1px solid var(--line);background:#09111a}
+.quoteTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.pair{font-size:15px;font-weight:800}.pair small{font-size:10px;color:var(--muted);font-weight:600}.price{font-size:27px;font-weight:900;letter-spacing:-.035em;margin-top:2px}.chg{font-size:11px;margin-left:8px}.pos{color:var(--green)}.neg{color:var(--red)}.ohlc{font-size:10px;color:#8d9aac;margin-top:3px}
+.tfbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}.tfs{display:flex;gap:3px}.tf{border:0;background:transparent;color:#8290a2;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:700}.tf.active{background:#182332;color:#fff}.source{font-size:10px;color:var(--muted)}
+.chartCard{background:#060a10}.chartWrap{height:520px;position:relative}.rsiLabel{height:25px;display:flex;align-items:center;gap:12px;padding:0 12px;border-top:1px solid #13202d;border-bottom:1px solid #13202d;background:#081019;color:#8493a6;font-size:10px}.rsiWrap{height:145px}.chartStatus{position:absolute;left:10px;top:10px;z-index:5;background:rgba(5,7,11,.86);border:1px solid #223043;border-radius:6px;padding:5px 7px;color:#98a6b8;font-size:9px;pointer-events:none}
+.bottomGrid{display:grid;grid-template-columns:1.15fr .85fr;border-top:1px solid var(--line);background:#081019}.section{padding:12px}.section+.section{border-left:1px solid var(--line)}.sectionTitle{font-size:11px;font-weight:800;margin-bottom:8px}
+.signalRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.mini{background:#0d151f;border:1px solid #1b2837;border-radius:8px;padding:8px}.mini .k{font-size:9px;color:var(--muted)}.mini .v{font-weight:800;margin-top:2px;font-size:12px}.reason{font-size:10px;color:#96a4b6;line-height:1.45;margin-top:8px}
+.table{width:100%;border-collapse:collapse;font-size:10px}.table th,.table td{padding:5px;text-align:right;border-top:1px solid #14202c}.table th{color:#758498;font-weight:600}.table th:first-child,.table td:first-child{text-align:left}
+.side{background:#081019;overflow:auto}.sideBox{padding:12px;border-bottom:1px solid var(--line)}.state{font-size:27px;font-weight:900;letter-spacing:-.03em;margin-top:2px}.state.wait{color:#e9eef5}.state.buy{color:var(--green)}.state.sell{color:var(--red)}
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.level{background:#0d151f;border:1px solid #1c2a3a;border-radius:9px;padding:8px}.level .k{font-size:9px;color:var(--muted)}.level .v{font-size:12px;font-weight:800;margin-top:3px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field label{display:block;color:#77879a;font-size:9px}.field input{width:100%;margin-top:4px;background:#0b131c;border:1px solid #263548;color:#eaf1f8;border-radius:7px;padding:8px;font-size:11px;outline:none}.field input:focus{border-color:#4a6b8d}
+.apply{width:100%;margin-top:10px;padding:9px;border-radius:8px;border:1px solid #6b5720;background:#2b2411;color:#ffe48a;font-weight:800}.rule{font-size:10px;color:#96a4b6;line-height:1.55}.rule b{color:#e9eef5}.foot{font-size:9px;color:#5f6e80;line-height:1.45}
+.badge{display:inline-flex;padding:3px 6px;border-radius:999px;border:1px solid #2a394a;font-size:9px;color:#98a6b8}.market{padding:7px 0;border-bottom:1px solid #14202c}.market:last-child{border-bottom:0}.marketTop{display:flex;justify-content:space-between;gap:8px}.marketSub{display:flex;justify-content:space-between;gap:8px;color:#7f8ea1;font-size:9px;margin-top:3px}
+@media(max-width:1050px){.shell{grid-template-columns:1fr}.main{border-right:0}.side{border-top:1px solid var(--line)}}
+@media(max-width:700px){.topbar{height:54px;padding:0 9px}.shell{min-height:calc(100vh - 54px)}.quote{padding:9px}.price{font-size:23px}.quoteTop{display:block}.quoteTop>div:last-child{text-align:left!important;margin-top:4px}.source{display:none}.chartWrap{height:430px}.rsiWrap{height:125px}.bottomGrid{grid-template-columns:1fr}.section+.section{border-left:0;border-top:1px solid var(--line)}.signalRow{grid-template-columns:1fr 1fr}.sideBox{padding:10px}.form{grid-template-columns:1fr 1fr}.tf{padding:5px 7px}.brand .sub{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="coin">Y</div><div><div class="brandTitle">Ycash Pro Strategy</div><div class="sub">TradingView-style composite market terminal</div></div></div>
+  <div class="live"><span class="liveDot"></span><span id="conn">Connecting</span></div>
+</header>
+
+<div class="shell">
+<main class="main">
+  <section class="quote">
+    <div class="quoteTop">
+      <div>
+        <div class="pair">YEC / USD <small>COMPOSITE INDEX</small></div>
+        <div><span class="price" id="price">—</span><span class="chg" id="chg">—</span></div>
+        <div class="ohlc" id="ohlc">O — &nbsp; H — &nbsp; L — &nbsp; C —</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sub">Strategy · EMA <span id="fastTxt">20</span>/<span id="slowTxt">50</span> + RSI <span id="rsiTrigTxt">50</span></div>
+        <div style="font-weight:800;margin-top:3px" id="lastUpdate">Waiting for market data</div>
+      </div>
+    </div>
+    <div class="tfbar">
+      <div class="tfs">
+        <button class="tf" data-tf="15m">15m</button>
+        <button class="tf active" data-tf="1h">1h</button>
+        <button class="tf" data-tf="4h">4h</button>
+        <button class="tf" data-tf="1d">1d</button>
+      </div>
+      <div class="source">Historical: CoinGecko aggregate · Live: volume-weighted active YEC markets</div>
+    </div>
+  </section>
+
+  <section class="chartCard">
+    <div class="chartWrap" id="chartWrap">
+      <div id="mainChart" style="width:100%;height:100%"></div>
+      <div class="chartStatus" id="chartStatus">Loading TradingView chart…</div>
+    </div>
+    <div class="rsiLabel"><b>RSI</b><span id="rsiValue">—</span><span>70</span><span>50</span><span>30</span></div>
+    <div class="rsiWrap" id="rsiWrap"><div id="rsiChart" style="width:100%;height:100%"></div></div>
+  </section>
+
+  <section class="bottomGrid">
+    <div class="section">
+      <div class="sectionTitle">Strategy snapshot</div>
+      <div class="signalRow">
+        <div class="mini"><div class="k">EMA fast</div><div class="v" id="emaFast">—</div></div>
+        <div class="mini"><div class="k">EMA slow</div><div class="v" id="emaSlow">—</div></div>
+        <div class="mini"><div class="k">RSI</div><div class="v" id="rsiMini">—</div></div>
+        <div class="mini"><div class="k">Signal candle</div><div class="v" id="signalTime">—</div></div>
+      </div>
+      <div class="reason" id="reasonBottom">Waiting for strategy data.</div>
+    </div>
+    <div class="section">
+      <div class="sectionTitle">Recent crossover signals</div>
+      <table class="table"><thead><tr><th>Time</th><th>Signal</th><th>Price</th><th>RSI</th></tr></thead><tbody id="signalTable"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<aside class="side">
+  <div class="sideBox">
+    <div class="sub">Current strategy state</div>
+    <div class="state wait" id="state">WAIT</div>
+    <div class="reason" id="reason">Waiting for enough closed candles.</div>
+    <div class="levels">
+      <div class="level"><div class="k">Entry reference</div><div class="v" id="entry">—</div></div>
+      <div class="level"><div class="k">Stop loss</div><div class="v" id="stop">—</div></div>
+      <div class="level"><div class="k">Take profit</div><div class="v" id="target">—</div></div>
+      <div class="level"><div class="k">Position size</div><div class="v" id="qty">—</div></div>
+    </div>
+  </div>
+
+  <div class="sideBox">
+    <div class="pair" style="font-size:12px;margin-bottom:9px">Strategy settings</div>
+    <div class="form">
+      <div class="field"><label>Fast EMA<input id="fast" type="number" min="2" value="20"></label></div>
+      <div class="field"><label>Slow EMA<input id="slow" type="number" min="3" value="50"></label></div>
+      <div class="field"><label>RSI length<input id="rsiLen" type="number" min="2" value="14"></label></div>
+      <div class="field"><label>RSI trigger<input id="rsiTrig" type="number" min="1" max="99" value="50"></label></div>
+      <div class="field"><label>Risk %<input id="risk" type="number" min=".1" max="20" step=".1" value="1"></label></div>
+      <div class="field"><label>Stop %<input id="sl" type="number" min=".1" step=".1" value="2"></label></div>
+      <div class="field"><label>Target %<input id="tp" type="number" min=".1" step=".1" value="4"></label></div>
+      <div class="field"><label>Paper equity $<input id="equity" type="number" min="100" value="10000"></label></div>
+    </div>
+    <button class="apply" id="apply">Apply settings</button>
+  </div>
+
+  <div class="sideBox rule">
+    <b>Long:</b> fast EMA crosses above slow EMA and RSI is above the trigger.<br>
+    <b>Short:</b> fast EMA crosses below slow EMA and RSI is below the trigger.<br>
+    <b>Signal timing:</b> entries are evaluated on the last <u>closed</u> candle to reduce repainting. The current live candle still updates on the chart.
+  </div>
+
+  <div class="sideBox">
+    <div class="pair" style="font-size:12px;margin-bottom:8px">Composite markets</div>
+    <div id="markets"><div class="sub">Loading venues…</div></div>
+  </div>
+  <div class="sideBox foot">This is a paper-strategy dashboard. It does not place orders. Thin YEC liquidity can create gaps and large venue spreads, so live fills can differ materially from displayed composite prices.</div>
+</aside>
+</div>
+</div>
+
+<script>
+const CG='https://api.coingecko.com/api/v3';
+const $=id=>document.getElementById(id);
+let timeframe='1h';
+let rawPoints=[], candles=[], tickers=[], livePrice=null;
+let settings={fast:20,slow:50,rsiLen:14,rsiTrig:50,risk:1,sl:2,tp:4,equity:10000};
+let mainChart,candleSeries,fastSeries,slowSeries,rsiChart,rsiSeries;
+let stopLine=null,targetLine=null,currentLine=null;
+let syncing=false;
+
+const tfMs={ '15m':900000,'1h':3600000,'4h':14400000,'1d':86400000 };
+const tfDays={ '15m':1,'1h':14,'4h':60,'1d':365 };
+const money=n=>Number.isFinite(+n)?'$'+(+n).toLocaleString('en-US',{minimumFractionDigits:+n<1?4:2,maximumFractionDigits:+n<.01?7:+n<1?5:2}):'—';
+const num=(n,d=4)=>Number.isFinite(+n)?(+n).toLocaleString('en-US',{maximumFractionDigits:d}):'—';
+const toSec=ms=>Math.floor(ms/1000);
+
+function initCharts(){
+  const LC=window.LightweightCharts;
+  if(!LC){ $('chartStatus').textContent='Chart library failed to load'; return; }
+  const common={
+    layout:{background:{type:'solid',color:'#060a10'},textColor:'#7f8ea1',fontSize:10},
+    grid:{vertLines:{color:'#101923'},horzLines:{color:'#101923'}},
+    rightPriceScale:{borderColor:'#1b2734',scaleMargins:{top:.08,bottom:.12}},
+    timeScale:{borderColor:'#1b2734',timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:8,minBarSpacing:3},
+    crosshair:{mode:LC.CrosshairMode.Normal,vertLine:{color:'#59697b',width:1,style:2,labelBackgroundColor:'#273445'},horzLine:{color:'#59697b',width:1,style:2,labelBackgroundColor:'#273445'}},
+    handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
+    handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
+  };
+  const el=$('mainChart'), rel=$('rsiChart');
+  mainChart=LC.createChart(el,{...common,width:el.clientWidth,height:el.clientHeight});
+  candleSeries=mainChart.addCandlestickSeries({upColor:'#18c889',downColor:'#f05b69',borderUpColor:'#18c889',borderDownColor:'#f05b69',wickUpColor:'#18c889',wickDownColor:'#f05b69',priceLineVisible:false,lastValueVisible:true});
+  fastSeries=mainChart.addLineSeries({color:'#18c889',lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+  slowSeries=mainChart.addLineSeries({color:'#f6c84a',lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+
+  rsiChart=LC.createChart(rel,{...common,width:rel.clientWidth,height:rel.clientHeight,rightPriceScale:{borderColor:'#1b2734',scaleMargins:{top:.12,bottom:.12}},timeScale:{visible:false,borderVisible:false,rightOffset:8,barSpacing:8,minBarSpacing:3}});
+  rsiSeries=rsiChart.addLineSeries({color:'#8f7cff',lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+  rsiSeries.createPriceLine({price:70,color:'#384657',lineWidth:1,lineStyle:2,axisLabelVisible:false});
+  rsiSeries.createPriceLine({price:50,color:'#2c3948',lineWidth:1,lineStyle:2,axisLabelVisible:false});
+  rsiSeries.createPriceLine({price:30,color:'#384657',lineWidth:1,lineStyle:2,axisLabelVisible:false});
+
+  mainChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(syncing||!r)return;syncing=true;rsiChart.timeScale().setVisibleLogicalRange(r);syncing=false});
+  rsiChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(syncing||!r)return;syncing=true;mainChart.timeScale().setVisibleLogicalRange(r);syncing=false});
+  mainChart.subscribeCrosshairMove(p=>{
+    if(!p.time)return;
+    const c=p.seriesData.get(candleSeries);
+    if(c) $('ohlc').innerHTML=`O ${num(c.open,6)} &nbsp; H ${num(c.high,6)} &nbsp; L ${num(c.low,6)} &nbsp; C ${num(c.close,6)}`;
+  });
+
+  const ro=new ResizeObserver(()=>{
+    mainChart.applyOptions({width:el.clientWidth,height:el.clientHeight});
+    rsiChart.applyOptions({width:rel.clientWidth,height:rel.clientHeight});
+  }); ro.observe(el); ro.observe(rel);
+}
+
+function aggregate(points,ms){
+  const m=new Map();
+  for(const q of points||[]){
+    const ts=+q[0],p=+q[1];
+    if(!Number.isFinite(ts)||!Number.isFinite(p)||p<=0)continue;
+    const t=Math.floor(ts/ms)*ms;
+    let x=m.get(t);
+    if(!x)m.set(t,{t,o:p,h:p,l:p,c:p});
+    else{x.h=Math.max(x.h,p);x.l=Math.min(x.l,p);x.c=p}
+  }
+  return [...m.values()].sort((a,b)=>a.t-b.t);
+}
+function ema(vals,len){
+  const out=new Array(vals.length).fill(null);
+  if(vals.length<len)return out;
+  let s=vals.slice(0,len).reduce((a,b)=>a+b,0)/len,k=2/(len+1);
+  out[len-1]=s;
+  for(let i=len;i<vals.length;i++){s=vals[i]*k+s*(1-k);out[i]=s}
+  return out;
+}
+function rsi(vals,len){
+  const out=new Array(vals.length).fill(null); if(vals.length<=len)return out;
+  let g=0,l=0;
+  for(let i=1;i<=len;i++){const d=vals[i]-vals[i-1];if(d>=0)g+=d;else l-=d}
+  g/=len;l/=len;out[len]=l===0?100:100-100/(1+g/l);
+  for(let i=len+1;i<vals.length;i++){
+    const d=vals[i]-vals[i-1],gg=Math.max(d,0),ll=Math.max(-d,0);
+    g=(g*(len-1)+gg)/len;l=(l*(len-1)+ll)/len;out[i]=l===0?100:100-100/(1+g/l);
+  }
+  return out;
+}
+function composite(tt){
+  const good=(tt||[]).filter(x=>x.base==='YEC'&&!x.is_stale&&!x.is_anomaly&&Number.isFinite(+x.converted_last?.usd)&&+x.converted_last.usd>0);
+  let s=0,w=0;
+  for(const x of good){const v=Math.max(1,+x.converted_volume?.usd||1);s+=(+x.converted_last.usd)*v;w+=v}
+  return {price:w?s/w:null,good};
+}
+function applyLive(){
+  if(!Number.isFinite(livePrice)||!candles.length)return;
+  const ms=tfMs[timeframe],t=Math.floor(Date.now()/ms)*ms,c=candles.at(-1);
+  if(!c||c.t<t)candles.push({t,o:livePrice,h:livePrice,l:livePrice,c:livePrice});
+  else if(c.t===t){c.h=Math.max(c.h,livePrice);c.l=Math.min(c.l,livePrice);c.c=livePrice}
+}
+function calcSignals(){
+  const cls=candles.map(x=>x.c),ef=ema(cls,settings.fast),es=ema(cls,settings.slow),rr=rsi(cls,settings.rsiLen);
+  const marks=[], signals=[];
+  for(let i=Math.max(settings.slow,settings.rsiLen)+1;i<candles.length;i++){
+    if(ef[i-1]==null||es[i-1]==null||rr[i]==null)continue;
+    const long=ef[i-1]<=es[i-1]&&ef[i]>es[i]&&rr[i]>settings.rsiTrig;
+    const short=ef[i-1]>=es[i-1]&&ef[i]<es[i]&&rr[i]<settings.rsiTrig;
+    if(long){marks.push({time:toSec(candles[i].t),position:'belowBar',color:'#18c889',shape:'arrowUp',text:'BUY'});signals.push({i,side:'BUY',p:candles[i].c,r:rr[i]})}
+    if(short){marks.push({time:toSec(candles[i].t),position:'aboveBar',color:'#f05b69',shape:'arrowDown',text:'SELL'});signals.push({i,side:'SELL',p:candles[i].c,r:rr[i]})}
+  }
+  return {ef,es,rr,marks,signals};
+}
+function drawData(fit=false){
+  if(!candleSeries||!candles.length)return;
+  const {ef,es,rr,marks,signals}=calcSignals();
+  candleSeries.setData(candles.map(c=>({time:toSec(c.t),open:c.o,high:c.h,low:c.l,close:c.c})));
+  fastSeries.setData(candles.map((c,i)=>ef[i]==null?null:{time:toSec(c.t),value:ef[i]}).filter(Boolean));
+  slowSeries.setData(candles.map((c,i)=>es[i]==null?null:{time:toSec(c.t),value:es[i]}).filter(Boolean));
+  rsiSeries.setData(candles.map((c,i)=>rr[i]==null?null:{time:toSec(c.t),value:rr[i]}).filter(Boolean));
+  candleSeries.setMarkers(marks.slice(-100));
+  if(fit){mainChart.timeScale().fitContent(); const n=Math.min(120,candles.length); mainChart.timeScale().setVisibleLogicalRange({from:candles.length-n-4,to:candles.length+8})}
+  updateStrategy(ef,es,rr,signals);
+}
+function removeRiskLines(){
+  if(stopLine){candleSeries.removePriceLine(stopLine);stopLine=null}
+  if(targetLine){candleSeries.removePriceLine(targetLine);targetLine=null}
+}
+function updateStrategy(ef,es,rr,signals){
+  if(candles.length<settings.slow+3)return;
+  const liveI=candles.length-1;
+  const signalI=Math.max(1,liveI-1);
+  const prev=signalI-1,c=candles[signalI];
+  const long=ef[prev]!=null&&es[prev]!=null&&ef[prev]<=es[prev]&&ef[signalI]>es[signalI]&&rr[signalI]>settings.rsiTrig;
+  const short=ef[prev]!=null&&es[prev]!=null&&ef[prev]>=es[prev]&&ef[signalI]<es[signalI]&&rr[signalI]<settings.rsiTrig;
+  let state='WAIT',reason=`No confirmed EMA crossover on the last closed ${timeframe} candle.`;
+  if(long){state='BUY';reason=`Fast EMA crossed above slow EMA with RSI ${num(rr[signalI],1)} > ${settings.rsiTrig}.`}
+  if(short){state='SELL';reason=`Fast EMA crossed below slow EMA with RSI ${num(rr[signalI],1)} < ${settings.rsiTrig}.`}
+  const el=$('state');el.textContent=state;el.className='state '+(state==='BUY'?'buy':state==='SELL'?'sell':'wait');
+  $('reason').textContent=reason;$('reasonBottom').textContent=reason;
+  $('emaFast').textContent=num(ef[signalI],6);$('emaSlow').textContent=num(es[signalI],6);$('rsiMini').textContent=num(rr[signalI],1);$('rsiValue').textContent=num(rr[liveI],1);
+  $('signalTime').textContent=new Date(c.t).toLocaleString([],{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  const entry=c.c, riskCash=settings.equity*settings.risk/100, dist=entry*settings.sl/100, qty=dist>0?riskCash/dist:0;
+  const stop=state==='SELL'?entry*(1+settings.sl/100):entry*(1-settings.sl/100);
+  const target=state==='SELL'?entry*(1-settings.tp/100):entry*(1+settings.tp/100);
+  $('entry').textContent=money(entry);$('stop').textContent=money(stop);$('target').textContent=money(target);$('qty').textContent=num(qty,0)+' YEC';
+  removeRiskLines();
+  if(state!=='WAIT'){
+    stopLine=candleSeries.createPriceLine({price:stop,color:'#f05b69',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
+    targetLine=candleSeries.createPriceLine({price:target,color:'#18c889',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
+  }
+  $('signalTable').innerHTML=signals.slice(-5).reverse().map(s=>`<tr><td>${new Date(candles[s.i].t).toLocaleString([],{month:'short',day:'2-digit',hour:'2-digit'})}</td><td class="${s.side==='BUY'?'pos':'neg'}">${s.side}</td><td>${num(s.p,6)}</td><td>${num(s.r,1)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No qualifying signals in loaded history</td></tr>';
+}
+function updateHeader(){
+  if(!candles.length)return;
+  const c=candles.at(-1), prev=candles.at(-2);
+  $('price').textContent=money(c.c);
+  const ch=prev?(c.c/prev.c-1)*100:0;$('chg').textContent=(ch>=0?'+':'')+num(ch,2)+'%';$('chg').className='chg '+(ch>=0?'pos':'neg');
+  $('ohlc').innerHTML=`O ${num(c.o,6)} &nbsp; H ${num(c.h,6)} &nbsp; L ${num(c.l,6)} &nbsp; C ${num(c.c,6)}`;
+  $('lastUpdate').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function renderMarkets(comp){
+  $('markets').innerHTML=tickers.map(x=>{
+    const included=comp.good.includes(x),state=x.is_stale?'stale':x.is_anomaly?'anomaly':included?'included':'excluded';
+    return `<div class="market"><div class="marketTop"><b>${x.market?.name||'Exchange'}</b><span class="badge">${x.base}/${x.target}</span></div><div class="marketSub"><span>${money(x.converted_last?.usd)}</span><span>${state} · vol $${num(x.converted_volume?.usd,0)}</span></div></div>`
+  }).join('');
+}
+async function loadHistory(){
+  $('chartStatus').textContent='Loading '+timeframe+' composite candles…';
+  try{
+    const r=await fetch(`${CG}/coins/ycash/market_chart?vs_currency=usd&days=${tfDays[timeframe]}`,{cache:'no-store'});
+    if(!r.ok)throw Error('history '+r.status);
+    const j=await r.json(); rawPoints=j.prices||[]; candles=aggregate(rawPoints,tfMs[timeframe]); applyLive();
+    drawData(true); updateHeader(); $('chartStatus').textContent='TradingView chart · '+timeframe+' composite';
+  }catch(e){$('chartStatus').textContent='History feed unavailable · retrying';}
+}
+async function loadLive(){
+  try{
+    const r=await fetch(CG+'/coins/ycash/tickers?include_exchange_logo=true',{cache:'no-store'}); if(!r.ok)throw Error(r.status);
+    const j=await r.json(); tickers=(j.tickers||[]).filter(x=>x.base==='YEC'); const comp=composite(tickers); livePrice=comp.price;
+    if(Number.isFinite(livePrice)&&candles.length){applyLive();drawData(false);updateHeader()}
+    renderMarkets(comp);$('conn').textContent=`Live composite · ${comp.good.length}/${tickers.length} markets`;
+  }catch(e){$('conn').textContent='Retrying market feed'}
+}
+document.querySelectorAll('.tf').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tf').forEach(x=>x.classList.remove('active'));b.classList.add('active');timeframe=b.dataset.tf;loadHistory();
+});
+$('apply').onclick=()=>{
+  for(const k of ['fast','slow','rsiLen','rsiTrig','risk','sl','tp','equity'])settings[k]=+$(k).value;
+  if(settings.fast>=settings.slow){settings.fast=Math.max(2,settings.slow-1);$('fast').value=settings.fast}
+  $('fastTxt').textContent=settings.fast;$('slowTxt').textContent=settings.slow;$('rsiTrigTxt').textContent=settings.rsiTrig;
+  drawData(false);
+};
+initCharts();loadHistory();loadLive();setInterval(loadLive,10000);setInterval(()=>loadHistory(),60000);
+</script>
+</body></html>
